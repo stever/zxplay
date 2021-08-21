@@ -426,9 +426,9 @@ window.JSSpeccy = (container, opts) => {
 
     const paletteMenu = ui.menuBar.addMenu('Palette');
     const paletteSelection = {
-        0: paletteMenu.addItem('RGB', () => emu.setPalette(0)),
-        1: paletteMenu.addItem('YUV', () => emu.setPalette(1)),
-        2: paletteMenu.addItem('MSX', () => emu.setPalette(2)),
+        0: paletteMenu.addItem('Original', () => emu.setPalette(0)),
+        1: paletteMenu.addItem('RGB', () => emu.setPalette(1)),
+        2: paletteMenu.addItem('YUV', () => emu.setPalette(2)),
     }
     const setPaletteCheckbox = (palette) => {
         for (let i in paletteSelection) {

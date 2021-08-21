@@ -11,6 +11,25 @@ export class CanvasRenderer {
         this.paletteOffset = 0;
 
         this.palette = new Uint32Array([
+            /* Original Palette */
+            /* RGBA dark */
+            0x000000ff,
+            0x2030c0ff,
+            0xc04010ff,
+            0xc040c0ff,
+            0x40b010ff,
+            0x50c0b0ff,
+            0xe0c010ff,
+            0xc0c0c0ff,
+            /* RGBA bright */
+            0x000000ff,
+            0x3040ffff,
+            0xff4030ff,
+            0xff70f0ff,
+            0x50e010ff,
+            0x50e0ffff,
+            0xffe850ff,
+            0xffffffff,
             /* RGB Palette */
             /* RGBA dark */
             0x000000ff,
@@ -48,26 +67,7 @@ export class CanvasRenderer {
             0x28dc2dff,
             0x36efdeff,
             0xeeeb46ff,
-            0xfdfff7ff,
-            /* MSX Palette */
-            /* RGBA dark */
-            0x000000ff,
-            0x2030c0ff,
-            0xc04010ff,
-            0xc040c0ff,
-            0x40b010ff,
-            0x50c0b0ff,
-            0xe0c010ff,
-            0xc0c0c0ff,
-            /* RGBA bright */
-            0x000000ff,
-            0x3040ffff,
-            0xff4030ff,
-            0xff70f0ff,
-            0x50e010ff,
-            0x50e0ffff,
-            0xffe850ff,
-            0xffffffff
+            0xfdfff7ff
         ]);
 
         const testUint8 = new Uint8Array(new Uint16Array([0x8000]).buffer);
