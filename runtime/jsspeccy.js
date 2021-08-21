@@ -29,7 +29,9 @@ class Emulator extends EventEmitter {
         this.isRunning = false;
         this.isInitiallyPaused = (!opts.autoStart);
         this.autoLoadTapes = opts.autoLoadTapes || false;
-        this.tapeAutoLoadMode = opts.tapeAutoLoadMode || 'default';  // or usr0
+        this.tapeAutoLoadMode = opts.tapeAutoLoadMode || 'default'; // or usr0
+
+        this.setPalette(opts.palette || 0);
 
         this.msPerFrame = 20;
 
@@ -41,7 +43,7 @@ class Emulator extends EventEmitter {
         this.fileOpenPromiseResolutions = {};
 
         this.worker.onmessage = (e) => {
-            switch(e.data.message) {
+            switch (e.data.message) {
                 case 'ready':
                     this.loadRoms().then(() => {
                         this.setMachine(opts.machine || 128);
@@ -80,9 +82,9 @@ class Emulator extends EventEmitter {
                 case 'fileOpened':
                     if (e.data.mediaType == 'tape' && this.autoLoadTapes) {
                         const TAPE_LOADERS_BY_MACHINE = {
-                            '48': {'default': 'tapeloaders/tape_48.szx', 'usr0': 'tapeloaders/tape_48.szx'},
-                            '128': {'default': 'tapeloaders/tape_128.szx', 'usr0': 'tapeloaders/tape_128_usr0.szx'},
-                            '5': {'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx'},
+                            '48': { 'default': 'tapeloaders/tape_48.szx', 'usr0': 'tapeloaders/tape_48.szx' },
+                            '128': { 'default': 'tapeloaders/tape_128.szx', 'usr0': 'tapeloaders/tape_128_usr0.szx' },
+                            '5': { 'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx' },
                         };
                         this.openUrl(new URL(TAPE_LOADERS_BY_MACHINE[this.machineType][this.tapeAutoLoadMode], scriptUrl));
                     }
@@ -179,6 +181,15 @@ class Emulator extends EventEmitter {
         }
     };
 
+    getPalette() {
+        return this.displayHandler.paletteSelection;
+    }
+
+    setPalette(palette) {
+        this.displayHandler.setPalette(palette);
+        this.emit('setPalette', this.displayHandler.paletteSelection);
+    }
+
     setMachine(type) {
         if (type != 128 && type != 5) type = 48;
         this.worker.postMessage({
@@ -190,7 +201,7 @@ class Emulator extends EventEmitter {
     }
 
     reset() {
-        this.worker.postMessage({message: 'reset'});
+        this.worker.postMessage({ message: 'reset' });
     }
 
     loadSnapshot(snapshot) {
@@ -271,7 +282,7 @@ class Emulator extends EventEmitter {
                     if (path.startsWith('__MACOSX/')) return;
                     const opener = this.getFileOpener(path);
                     if (opener) {
-                        const boundOpener = async () => {
+                        const boundOpener = async() => {
                             const buf = await file.async('arraybuffer');
                             return opener(buf);
                         };
@@ -294,7 +305,7 @@ class Emulator extends EventEmitter {
         const opener = this.getFileOpener(file.name);
         if (opener) {
             const buf = await file.arrayBuffer();
-            return opener(buf).catch(err => {alert(err);});
+            return opener(buf).catch(err => { alert(err); });
         } else {
             throw 'Unrecognised file type: ' + file.name;
         }
@@ -342,12 +353,14 @@ window.JSSpeccy = (container, opts) => {
 
     const emu = new Emulator(canvas, {
         machine: opts.machine || 128,
+        palette: opts.palette || 0,
         autoStart: opts.autoStart || false,
         autoLoadTapes: opts.autoLoadTapes || false,
         tapeAutoLoadMode: opts.tapeAutoLoadMode || 'default',
+
         openUrl: opts.openUrl,
     });
-    const ui = new UIController(container, emu, {zoom: opts.zoom || 1, sandbox: opts.sandbox});
+    const ui = new UIController(container, emu, { zoom: opts.zoom || 1, sandbox: opts.sandbox });
 
     if (!opts.sandbox) {
         const fileMenu = ui.menuBar.addMenu('File');
@@ -411,6 +424,22 @@ window.JSSpeccy = (container, opts) => {
         }
     }
 
+    const paletteMenu = ui.menuBar.addMenu('Palette');
+    const paletteSelection = {
+        0: paletteMenu.addItem('RGB', () => emu.setPalette(0)),
+        1: paletteMenu.addItem('YUV', () => emu.setPalette(1)),
+        2: paletteMenu.addItem('MSX', () => emu.setPalette(2)),
+    }
+    const setPaletteCheckbox = (palette) => {
+        for (let i in paletteSelection) {
+            if (parseInt(i) == palette) {
+                paletteSelection[i].setBullet();
+            } else {
+                paletteSelection[i].unsetBullet();
+            }
+        }
+    }
+
     ui.on('setZoom', setZoomCheckbox);
     setZoomCheckbox(ui.zoom);
 
@@ -430,15 +459,18 @@ window.JSSpeccy = (container, opts) => {
         }
     });
 
+    emu.on('setPalette', setPaletteCheckbox);
+    setPaletteCheckbox(emu.getPalette());
+
     if (!opts.sandbox) {
-        ui.toolbar.addButton(openIcon, {label: 'Open file'}, () => {
+        ui.toolbar.addButton(openIcon, { label: 'Open file' }, () => {
             openFileDialog();
         });
     }
-    ui.toolbar.addButton(resetIcon, {label: 'Reset'}, () => {
+    ui.toolbar.addButton(resetIcon, { label: 'Reset' }, () => {
         emu.reset();
     });
-    const pauseButton = ui.toolbar.addButton(playIcon, {label: 'Unpause'}, () => {
+    const pauseButton = ui.toolbar.addButton(playIcon, { label: 'Unpause' }, () => {
         if (emu.isRunning) {
             emu.pause();
         } else {
@@ -454,8 +486,7 @@ window.JSSpeccy = (container, opts) => {
         pauseButton.setLabel('Pause');
     });
     const fullscreenButton = ui.toolbar.addButton(
-        fullscreenIcon,
-        {label: 'Enter full screen mode', align: 'right'},
+        fullscreenIcon, { label: 'Enter full screen mode', align: 'right' },
         () => {
             ui.toggleFullscreen();
         }
@@ -476,7 +507,7 @@ window.JSSpeccy = (container, opts) => {
             const file = files[0];
             emu.openFile(file).then(() => {
                 if (emu.isInitiallyPaused) emu.start();
-            }).catch((err) => {alert(err);});
+            }).catch((err) => { alert(err); });
         });
     }
 
@@ -507,14 +538,14 @@ window.JSSpeccy = (container, opts) => {
             }
 
             const searchUrl = (
-                'https://archive.org/advancedsearch.php?'
-                + encodeParam('q', 'collection:softwarelibrary_zx_spectrum title:"' + searchTerm + '"')
-                + '&' + encodeParam('fl[]', 'creator')
-                + '&' + encodeParam('fl[]', 'identifier')
-                + '&' + encodeParam('fl[]', 'title')
-                + '&' + encodeParam('rows', '50')
-                + '&' + encodeParam('page', '1')
-                + '&' + encodeParam('output', 'json')
+                'https://archive.org/advancedsearch.php?' +
+                encodeParam('q', 'collection:softwarelibrary_zx_spectrum title:"' + searchTerm + '"') +
+                '&' + encodeParam('fl[]', 'creator') +
+                '&' + encodeParam('fl[]', 'identifier') +
+                '&' + encodeParam('fl[]', 'title') +
+                '&' + encodeParam('rows', '50') +
+                '&' + encodeParam('page', '1') +
+                '&' + encodeParam('output', 'json')
             )
             fetch(searchUrl).then(response => {
                 searchButton.innerText = 'Search';
@@ -581,15 +612,16 @@ window.JSSpeccy = (container, opts) => {
     */
 
     return {
-        setZoom: (zoom) => {ui.setZoom(zoom);},
-        toggleFullscreen: () => {ui.toggleFullscreen();},
-        enterFullscreen: () => {ui.enterFullscreen();},
-        exitFullscreen: () => {ui.exitFullscreen();},
-        setMachine: (model) => {emu.setMachine(model);},
-        openFileDialog: () => {openFileDialog();},
+        setZoom: (zoom) => { ui.setZoom(zoom); },
+        toggleFullscreen: () => { ui.toggleFullscreen(); },
+        enterFullscreen: () => { ui.enterFullscreen(); },
+        exitFullscreen: () => { ui.exitFullscreen(); },
+        setMachine: (model) => { emu.setMachine(model); },
+        setPalette: (palette) => { emu.setPalette(palette); },
+        openFileDialog: () => { openFileDialog(); },
         openUrl: (url) => {
-            emu.openUrl(url).catch((err) => {alert(err);});
+            emu.openUrl(url).catch((err) => { alert(err); });
         },
-        exit: () => {exit();},
+        exit: () => { exit(); },
     };
 };
