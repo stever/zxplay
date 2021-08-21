@@ -1,6 +1,7 @@
 # JSSpeccy 3
 
-A ZX Spectrum emulator for the browser
+A ZX Spectrum emulator for the browser.
+This is a fork I made to address some gripes I had with the mainstream version. See Addendum
 
 ## Features
 
@@ -78,6 +79,27 @@ For additional JavaScript hackery, the return value of the JSSpeccy function cal
 * `emu.openUrl(url)` - open the file at the given URL
 * `emu.exit()` - immediately stop the emulator and remove it from the document
 
+## Addendum
+
+First of all, I am very impressed with this piece of work and congratulations are in order to Matt Wescott for his efforts on this emulator.
+
+However, I decided to make a 'soft fork' because I have some gripes with the palette elected by Wescott.
+I regard it not very faithful to the one employed on the [ZX Spectrum](https://en.wikipedia.org/wiki/ZX_Spectrum_graphic_modes#Colour_palette), and most of my acquaintances of the scene share the same opinion.
+This palette is most likely calculated measuring voltages on the RGB output of the 128k models, since the ULAs of those models generate RGBI signals that later are encoded to composite by the TEA2000 encoder.
+Those are the colors that most emulators use and most people are used to, but as with anything, your mileage may vary.
+For this reason, I decided to create this fork, to use this palette, but the the one of the original version can still be selected if you like it more.
+
+The ULA of the previous models to the 128k generated the composite signal directly, and generating the colors on composite video is a tricky thing.
+The colors are not generated as RGB, but as [YUV](https://en.wikipedia.org/wiki/YUV), a different color space than RGB.
+So, I also decided to add a palette converted from the YUV values described on [Chris Smith's excellent book](http://www.zxdesign.info/book/) and translated to RGB.
+
+Finally, I don't like the bilineal filtering the canvas seems to be applying when the screen is scaled, so I decided to turn it off on non-full screen mode.
+
+This is a weekend project to make this great work more to my liking so I will not develop it further more.
+I will endevour to keep it in line with Wescott's main project, but don't expect much on that regard.
+If Wescott decides to merge some of this changes (he is welcome to do so), then this fork will be of no more use.
+
+Hope you enjoy it regardless.
 
 ## Licence
 

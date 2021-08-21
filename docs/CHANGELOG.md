@@ -1,3 +1,14 @@
+3.0.1.2 (2021-08-21)
+--------------------
+
+* Disabled filtering outside of Full Screen mode.
+
+
+3.0.1.1 (2021-08-21)
+--------------------
+
+* Added palette selection.
+
 3.0.1 (2021-08-16)
 ------------------
 

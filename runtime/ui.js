@@ -238,6 +238,7 @@ export class UIController extends EventEmitter {
         this.appContainer.appendChild(this.canvas);
         this.canvas.style.objectFit = 'contain';
         this.canvas.style.display = 'block';
+        this.canvas.style.imageRendering = 'crisp-edges';
 
         this.toolbar = new Toolbar(this.appContainer);
 
@@ -288,11 +289,12 @@ export class UIController extends EventEmitter {
             }
             this.showUI();
             if (this.hideUITimeout) clearTimeout(this.hideUITimeout);
-            this.hideUITimeout = setTimeout(() => {this.hideUI();}, 3000);
+            this.hideUITimeout = setTimeout(() => { this.hideUI(); }, 3000);
         }
         this.appContainer.addEventListener('fullscreenchange', () => {
             if (document.fullscreenElement) {
                 this.isFullscreen = true;
+                this.canvas.style.imageRendering = 'auto';
                 this.canvas.style.width = '100%';
                 this.canvas.style.height = '100%';
                 document.addEventListener('mousemove', fullscreenMouseMove);
@@ -300,17 +302,18 @@ export class UIController extends EventEmitter {
                 this.ignoreNextMouseMove = true;
 
                 this.menuBar.enterFullscreen();
-                this.menuBar.onmouseenter(() => {this.allowUIHiding = false;});
-                this.menuBar.onmouseout(() => {this.allowUIHiding = true;});
+                this.menuBar.onmouseenter(() => { this.allowUIHiding = false; });
+                this.menuBar.onmouseout(() => { this.allowUIHiding = true; });
 
                 this.toolbar.enterFullscreen();
-                this.toolbar.onmouseenter(() => {this.allowUIHiding = false;});
-                this.toolbar.onmouseout(() => {this.allowUIHiding = true;});
+                this.toolbar.onmouseenter(() => { this.allowUIHiding = false; });
+                this.toolbar.onmouseout(() => { this.allowUIHiding = true; });
 
                 this.hideUI();
                 this.emit('setZoom', 'fullscreen');
             } else {
                 this.isFullscreen = false;
+                this.canvas.style.imageRendering = 'crisp-edges';
                 if (this.hideUITimeout) clearTimeout(this.hideUITimeout);
                 this.showUI();
 
@@ -367,7 +370,7 @@ export class UIController extends EventEmitter {
         this.zoom = factor;
         if (this.isFullscreen) {
             document.exitFullscreen();
-            return;  // setZoom will be retriggered once fullscreen has exited
+            return; // setZoom will be retriggered once fullscreen has exited
         }
         const displayWidth = 320 * this.zoom;
         const displayHeight = 240 * this.zoom;
@@ -418,7 +421,7 @@ export class UIController extends EventEmitter {
         this.dialog.style.height = '80%';
         this.dialog.style.left = '12%';
         this.dialog.style.top = '10%';
-        this.dialog.style.overflow = 'scroll';  // TODO: less hacky scrolling that doesn't hide the close button
+        this.dialog.style.overflow = 'scroll'; // TODO: less hacky scrolling that doesn't hide the close button
         this.dialogBody.style.paddingLeft = '8px';
         this.dialogBody.style.paddingRight = '8px';
         this.dialogBody.style.paddingBottom = '8px';
