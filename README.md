@@ -1,7 +1,7 @@
 # JSSpeccy 3
 
 A ZX Spectrum emulator for the browser.
-This is a fork I made to address some gripes I had with the mainstream version. See Addendum
+See Addendum for the motivation of this fork.
 
 ## Features
 
