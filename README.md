@@ -85,7 +85,7 @@ First of all, I am very impressed with this piece of work and congratulations ar
 
 However, I decided to make a 'soft fork' because I have some gripes with the palette elected by Wescott.
 I regard it not very faithful to the one employed on the [ZX Spectrum](https://en.wikipedia.org/wiki/ZX_Spectrum_graphic_modes#Colour_palette), and most of my acquaintances of the scene share the same opinion.
-This palette is most likely calculated measuring voltages on the RGB output of the 128k models, since the ULAs of those models generate RGBI signals that later are encoded to composite by the TEA2000 encoder.
+The palette described on the previous link is most likely calculated measuring voltages on the RGB output of the 128k models, since the ULAs of those models generate RGBI signals that later are encoded to composite by the TEA2000 encoder.
 Those are the colors that most emulators use and most people are used to, but as with anything, your mileage may vary.
 For this reason, I decided to create this fork, to use this palette, but the the one of the original version can still be selected if you like it more.
 
