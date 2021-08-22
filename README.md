@@ -13,6 +13,7 @@ See Addendum for the motivation of this fork.
 * Loads TZX and TAP tape images (via traps only)
 * Loads any of the above files from inside a ZIP file
 * 100% / 200% / 300% and fullscreen display modes
+* Three different color schemes
 
 ## Implementation notes
 
