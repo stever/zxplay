@@ -386,16 +386,19 @@ window.JSSpeccy = (container, opts) => {
         });
     }
 
-    const machineMenu = ui.menuBar.addMenu('Machine');
-    const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
-        emu.setMachine(48);
-    });
-    const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
-        emu.setMachine(128);
-    });
-    const machinePentagonItem = machineMenu.addItem('Pentagon 128', () => {
-        emu.setMachine(5);
-    });
+    if (!opts.sandbox) {
+        const machineMenu = ui.menuBar.addMenu('Machine');
+        const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
+            emu.setMachine(48);
+        });
+        const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
+            emu.setMachine(128);
+        });
+        const machinePentagonItem = machineMenu.addItem('Pentagon 128', () => {
+            emu.setMachine(5);
+        });
+    }
+
     const displayMenu = ui.menuBar.addMenu('Display');
 
     const zoomItemsBySize = {
@@ -426,7 +429,7 @@ window.JSSpeccy = (container, opts) => {
 
     const paletteMenu = ui.menuBar.addMenu('Palette');
     const paletteSelection = {
-        0: paletteMenu.addItem('Original', () => emu.setPalette(0)),
+        0: paletteMenu.addItem('Default', () => emu.setPalette(0)),
         1: paletteMenu.addItem('RGB', () => emu.setPalette(1)),
         2: paletteMenu.addItem('YUV', () => emu.setPalette(2)),
     }
@@ -443,21 +446,23 @@ window.JSSpeccy = (container, opts) => {
     ui.on('setZoom', setZoomCheckbox);
     setZoomCheckbox(ui.zoom);
 
-    emu.on('setMachine', (type) => {
-        if (type == 48) {
-            machine48Item.setBullet();
-            machine128Item.unsetBullet();
-            machinePentagonItem.unsetBullet();
-        } else if (type == 128) {
-            machine48Item.unsetBullet();
-            machine128Item.setBullet();
-            machinePentagonItem.unsetBullet();
-        } else { // pentagon
-            machine48Item.unsetBullet();
-            machine128Item.unsetBullet();
-            machinePentagonItem.setBullet();
-        }
-    });
+    if (!opts.sandbox) {
+        emu.on('setMachine', (type) => {
+            if (type == 48) {
+                machine48Item.setBullet();
+                machine128Item.unsetBullet();
+                machinePentagonItem.unsetBullet();
+            } else if (type == 128) {
+                machine48Item.unsetBullet();
+                machine128Item.setBullet();
+                machinePentagonItem.unsetBullet();
+            } else { // pentagon
+                machine48Item.unsetBullet();
+                machine128Item.unsetBullet();
+                machinePentagonItem.setBullet();
+            }
+        });
+    }
 
     emu.on('setPalette', setPaletteCheckbox);
     setPaletteCheckbox(emu.getPalette());
