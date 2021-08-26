@@ -60,6 +60,7 @@ The available configuration options are:
 * `openUrl`: specifies a URL, or an array of URLs, to a file (or files) to load on startup, in any supported snapshot, tape or archive format. Standard browser security restrictions apply for loading remote files: if the URL being loaded is not on the same domain as the calling page, it must serve [CORS HTTP headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) to be loadable.
 * `zoom`: specifies the size of the emulator window; 1 for 100% size (one Spectrum pixel per screen pixel), 2 for 200% size and so on.
 * `sandbox`: if true, all UI options for opening a new file are disabled - useful if you're showcasing a specific bit of Spectrum software on your page.
+* `language`: Selects the language for the UI, currently `en` for English and `es` for Spanish.
 
 For additional JavaScript hackery, the return value of the JSSpeccy function call is an object exposing a number of functions for controlling the running emulator:
 
@@ -94,7 +95,9 @@ The ULA of the previous models to the 128k generated the composite signal direct
 The colors are not generated as RGB, but as [YUV](https://en.wikipedia.org/wiki/YUV), a different color space.
 So, I also decided to add a palette converted from the YUV values described on [Chris Smith's excellent book](http://www.zxdesign.info/book/) and translated to RGB.
 
-In short, you have three possible color combinations to choose from on the upper menu. I also added the corresponding configuration option and Javascript function to select the palette outside the emulator. All is documented upwards.  
+In short, you have three possible color combinations to choose from on the upper menu. I also added the corresponding configuration option and Javascript function to select the palette outside the emulator. All is documented upwards.
+
+Also, I have added translations to the texts on the emulator if you need to localize your instance. It applies only on loading, there is not external function or internal menu to change the language on the fly.
 
 Finally, I don't like the bilineal filtering (blurry image) the canvas seems to be applying when the screen is scaled, so I decided to turn it off for non-fullscreen mode.
 

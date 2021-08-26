@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import fileDialog from 'file-dialog';
 import JSZip from 'jszip';
+import Translator from '@andreasremdt/simple-translator';
 
 import { DisplayHandler } from './render.js';
 import { UIController } from './ui.js';
@@ -15,6 +16,9 @@ import playIcon from './icons/play.svg';
 import pauseIcon from './icons/pause.svg';
 import fullscreenIcon from './icons/fullscreen.svg';
 import exitFullscreenIcon from './icons/exitfullscreen.svg';
+
+import enTranslation from './i18n/en.json';
+import esTranslation from './i18n/es.json';
 
 const scriptUrl = document.currentScript.src;
 
@@ -347,6 +351,17 @@ window.JSSpeccy = (container, opts) => {
     // let benchmarkRenderCount = 0;
     opts = opts || {};
 
+    opts.sandbox = opts.sandbox || false;
+    opts.language = opts.language || 'en';
+
+    const translator = new Translator({
+        defaultLanguage: 'en'
+    });
+    translator.add('en', enTranslation).add('es', esTranslation);
+
+    let langs = new Set(['en', 'es']);
+    if (!langs.has(opts.language.toLowerCase())) opts.language = 'en';
+
     const canvas = document.createElement('canvas');
     canvas.width = 320;
     canvas.height = 240;
@@ -363,11 +378,11 @@ window.JSSpeccy = (container, opts) => {
     const ui = new UIController(container, emu, { zoom: opts.zoom || 1, sandbox: opts.sandbox });
 
     if (!opts.sandbox) {
-        const fileMenu = ui.menuBar.addMenu('File');
-        fileMenu.addItem('Open...', () => {
+        const fileMenu = ui.menuBar.addMenu(translator.translateForKey('fileMenu.file', opts.language));
+        fileMenu.addItem(translator.translateForKey('fileMenu.open', opts.language), () => {
             openFileDialog();
         });
-        const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
+        const autoLoadTapesMenuItem = fileMenu.addItem(translator.translateForKey('fileMenu.autoLoadTapes', opts.language), () => {
             emu.setAutoLoadTapes(!emu.autoLoadTapes);
         });
 
@@ -381,32 +396,49 @@ window.JSSpeccy = (container, opts) => {
         emu.on('setAutoLoadTapes', updateAutoLoadTapesCheckbox);
         updateAutoLoadTapesCheckbox();
 
-        fileMenu.addItem('Find games...', () => {
+        fileMenu.addItem(translator.translateForKey('fileMenu.findGames', opts.language), () => {
             openGameBrowser();
         });
     }
 
     if (!opts.sandbox) {
-        const machineMenu = ui.menuBar.addMenu('Machine');
-        const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
+        const machineMenu = ui.menuBar.addMenu(translator.translateForKey('machineMenu.machine', opts.language));
+        const machine48Item = machineMenu.addItem(translator.translateForKey('machineMenu.spectrum48', opts.language), () => {
             emu.setMachine(48);
         });
-        const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
+        const machine128Item = machineMenu.addItem(translator.translateForKey('machineMenu.spectrum128', opts.language), () => {
             emu.setMachine(128);
         });
-        const machinePentagonItem = machineMenu.addItem('Pentagon 128', () => {
+        const machinePentagonItem = machineMenu.addItem(translator.translateForKey('machineMenu.pentagon', opts.language), () => {
             emu.setMachine(5);
         });
+
+        emu.on('setMachine', (type) => {
+            if (type == 48) {
+                machine48Item.setBullet();
+                machine128Item.unsetBullet();
+                machinePentagonItem.unsetBullet();
+            } else if (type == 128) {
+                machine48Item.unsetBullet();
+                machine128Item.setBullet();
+                machinePentagonItem.unsetBullet();
+            } else { // pentagon
+                machine48Item.unsetBullet();
+                machine128Item.unsetBullet();
+                machinePentagonItem.setBullet();
+            }
+        });
+
     }
 
-    const displayMenu = ui.menuBar.addMenu('Display');
+    const displayMenu = ui.menuBar.addMenu(translator.translateForKey('displayMenu.display', opts.language));
 
     const zoomItemsBySize = {
-        1: displayMenu.addItem('100%', () => ui.setZoom(1)),
-        2: displayMenu.addItem('200%', () => ui.setZoom(2)),
-        3: displayMenu.addItem('300%', () => ui.setZoom(3)),
+        1: displayMenu.addItem(translator.translateForKey('displayMenu.zoom100%', opts.language), () => ui.setZoom(1)),
+        2: displayMenu.addItem(translator.translateForKey('displayMenu.zoom200%', opts.language), () => ui.setZoom(2)),
+        3: displayMenu.addItem(translator.translateForKey('displayMenu.zoom300%', opts.language), () => ui.setZoom(3)),
     }
-    const fullscreenItem = displayMenu.addItem('Fullscreen', () => {
+    const fullscreenItem = displayMenu.addItem(translator.translateForKey('displayMenu.fullscreen', opts.language), () => {
         ui.enterFullscreen();
     })
     const setZoomCheckbox = (factor) => {
@@ -426,12 +458,14 @@ window.JSSpeccy = (container, opts) => {
             }
         }
     }
+    ui.on('setZoom', setZoomCheckbox);
+    setZoomCheckbox(ui.zoom);
 
-    const paletteMenu = ui.menuBar.addMenu('Palette');
+    const paletteMenu = ui.menuBar.addMenu(translator.translateForKey('paletteMenu.palette', opts.language));
     const paletteSelection = {
-        0: paletteMenu.addItem('Default', () => emu.setPalette(0)),
-        1: paletteMenu.addItem('RGB', () => emu.setPalette(1)),
-        2: paletteMenu.addItem('YUV', () => emu.setPalette(2)),
+        0: paletteMenu.addItem(translator.translateForKey('paletteMenu.default', opts.language), () => emu.setPalette(0)),
+        1: paletteMenu.addItem(translator.translateForKey('paletteMenu.rgb', opts.language), () => emu.setPalette(1)),
+        2: paletteMenu.addItem(translator.translateForKey('paletteMenu.yuv', opts.language), () => emu.setPalette(2)),
     }
     const setPaletteCheckbox = (palette) => {
         for (let i in paletteSelection) {
@@ -442,40 +476,18 @@ window.JSSpeccy = (container, opts) => {
             }
         }
     }
-
-    ui.on('setZoom', setZoomCheckbox);
-    setZoomCheckbox(ui.zoom);
-
-    if (!opts.sandbox) {
-        emu.on('setMachine', (type) => {
-            if (type == 48) {
-                machine48Item.setBullet();
-                machine128Item.unsetBullet();
-                machinePentagonItem.unsetBullet();
-            } else if (type == 128) {
-                machine48Item.unsetBullet();
-                machine128Item.setBullet();
-                machinePentagonItem.unsetBullet();
-            } else { // pentagon
-                machine48Item.unsetBullet();
-                machine128Item.unsetBullet();
-                machinePentagonItem.setBullet();
-            }
-        });
-    }
-
     emu.on('setPalette', setPaletteCheckbox);
     setPaletteCheckbox(emu.getPalette());
 
     if (!opts.sandbox) {
-        ui.toolbar.addButton(openIcon, { label: 'Open file' }, () => {
+        ui.toolbar.addButton(openIcon, { label: translator.translateForKey('toolbar.openFile', opts.language) }, () => {
             openFileDialog();
         });
     }
-    ui.toolbar.addButton(resetIcon, { label: 'Reset' }, () => {
+    ui.toolbar.addButton(resetIcon, { label: translator.translateForKey('toolbar.reset', opts.language) }, () => {
         emu.reset();
     });
-    const pauseButton = ui.toolbar.addButton(playIcon, { label: 'Unpause' }, () => {
+    const pauseButton = ui.toolbar.addButton(playIcon, { label: translator.translateForKey('toolbar.unpause', opts.language) }, () => {
         if (emu.isRunning) {
             emu.pause();
         } else {
@@ -484,14 +496,14 @@ window.JSSpeccy = (container, opts) => {
     });
     emu.on('pause', () => {
         pauseButton.setIcon(playIcon);
-        pauseButton.setLabel('Unpause');
+        pauseButton.setLabel(translator.translateForKey('toolbar.unpause', opts.language));
     });
     emu.on('start', () => {
         pauseButton.setIcon(pauseIcon);
-        pauseButton.setLabel('Pause');
+        pauseButton.setLabel(translator.translateForKey('toolbar.pause', opts.language));
     });
     const fullscreenButton = ui.toolbar.addButton(
-        fullscreenIcon, { label: 'Enter full screen mode', align: 'right' },
+        fullscreenIcon, { label: translator.translateForKey('toolbar.enterFullscreen', opts.language), align: 'right' },
         () => {
             ui.toggleFullscreen();
         }
@@ -500,10 +512,10 @@ window.JSSpeccy = (container, opts) => {
     ui.on('setZoom', (factor) => {
         if (factor == 'fullscreen') {
             fullscreenButton.setIcon(exitFullscreenIcon);
-            fullscreenButton.setLabel('Exit full screen mode');
+            fullscreenButton.setLabel(translator.translateForKey('toolbar.exitFullscreen', opts.language));
         } else {
             fullscreenButton.setIcon(fullscreenIcon);
-            fullscreenButton.setLabel('Enter full screen mode');
+            fullscreenButton.setLabel(translator.translateForKey('toolbar.enterFullscreen', opts.language));
         }
     });
 
@@ -520,10 +532,10 @@ window.JSSpeccy = (container, opts) => {
         emu.pause();
         const body = ui.showDialog();
         body.innerHTML = `
-            <label>Find games</label>
+            <label>` + translator.translateForKey('searchScreen.findGames', opts.language) + `</label>
             <form>
                 <input type="search">
-                <button type="submit">Search</button>
+                <button type="submit">` + translator.translateForKey('searchScreen.search', opts.language) + `</button>
             </form>
             <div class="results">
             </div>
@@ -535,7 +547,7 @@ window.JSSpeccy = (container, opts) => {
 
         searchForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            searchButton.innerText = 'Searching...';
+            searchButton.innerText = translator.translateForKey('searchScreen.searching', opts.language);
             const searchTerm = input.value.replace(/[^\w\s\-\']/, '');
 
             const encodeParam = (key, val) => {
@@ -553,7 +565,7 @@ window.JSSpeccy = (container, opts) => {
                 '&' + encodeParam('output', 'json')
             )
             fetch(searchUrl).then(response => {
-                searchButton.innerText = 'Search';
+                searchButton.innerText = translator.translateForKey('searchScreen.search', opts.language);
                 return response.json();
             }).then(data => {
                 resultsContainer.innerHTML = '<ul></ul><p>- powered by <a href="https://archive.org/">Internet Archive</a></p>';
@@ -581,7 +593,7 @@ window.JSSpeccy = (container, opts) => {
                                 }
                             });
                             if (!chosenFilename) {
-                                alert('No loadable file found');
+                                alert(translator.translateForKey('searchScreen.notLoadableFileFound', opts.language));
                             } else {
                                 const finalUrl = 'https://cors.archive.org/cors/' + result.identifier + '/' + chosenFilename;
                                 emu.openUrl(finalUrl).catch((err) => {

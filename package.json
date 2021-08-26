@@ -1,67 +1,68 @@
 {
-  "name": "jsspeccy",
-  "version": "3.0.1",
-  "description": "a ZX Spectrum emulator in the browser",
-  "main": "jsspeccy.js",
-  "type": "module",
-  "scripts": {
-    "test": "npm run build && node --experimental-wasm-modules test/test.js test/tests.in test/tests.expected",
-    "build:core": "node generator/gencore.js generator/core.ts.in build/core.ts",
-    "build:wasm:debug": "asc build/core.ts --target debug",
-    "build:wasm:release": "asc build/core.ts --target release",
-    "build:js": "mkdir -p dist/jsspeccy && webpack",
-    "build:static": "mkdir -p dist/jsspeccy && cp static/index.html dist/ && cp static/favicon.ico dist/ && cp README.md dist/ && cp COPYING dist/ && cp CHANGELOG.md dist/ && cp -r static/roms dist/jsspeccy && cp -r static/tapeloaders dist/jsspeccy",
-    "build": "npm run build:core && npm run build:wasm:debug && npm run build:js && npm run build:static",
-    "build:release": "npm run build:core && npm run build:wasm:release && npm run build:js && npm run build:static",
-    "watch": "npm-watch"
-  },
-  "watch": {
-    "build:core": {
-      "patterns": [
-        "generator/*.js",
-        "generator/*.ts.in"
-      ],
-      "extensions": [
-        "js",
-        "in"
-      ]
+    "name": "jsspeccy",
+    "version": "3.0.1",
+    "description": "a ZX Spectrum emulator in the browser",
+    "main": "jsspeccy.js",
+    "type": "module",
+    "scripts": {
+        "test": "npm run build && node --experimental-wasm-modules test/test.js test/tests.in test/tests.expected",
+        "build:core": "node generator/gencore.js generator/core.ts.in build/core.ts",
+        "build:wasm:debug": "asc build/core.ts --target debug",
+        "build:wasm:release": "asc build/core.ts --target release",
+        "build:js": "mkdir -p dist/jsspeccy && webpack",
+        "build:static": "mkdir -p dist/jsspeccy && cp static/index.html dist/ && cp static/favicon.ico dist/ && cp README.md dist/ && cp COPYING dist/ && cp CHANGELOG.md dist/ && cp -r static/roms dist/jsspeccy && cp -r static/tapeloaders dist/jsspeccy",
+        "build": "npm run build:core && npm run build:wasm:debug && npm run build:js && npm run build:static",
+        "build:release": "npm run build:core && npm run build:wasm:release && npm run build:js && npm run build:static",
+        "watch": "npm-watch"
     },
-    "build:wasm:debug": {
-      "patterns": [
-        "build/core.ts"
-      ],
-      "extensions": "ts"
+    "watch": {
+        "build:core": {
+            "patterns": [
+                "generator/*.js",
+                "generator/*.ts.in"
+            ],
+            "extensions": [
+                "js",
+                "in"
+            ]
+        },
+        "build:wasm:debug": {
+            "patterns": [
+                "build/core.ts"
+            ],
+            "extensions": "ts"
+        },
+        "build:js": {
+            "patterns": [
+                "runtime/*.js",
+                "build/*.js"
+            ],
+            "extensions": "js"
+        },
+        "build:static": {
+            "patterns": [
+                "static/*.html",
+                "static/*.rom"
+            ],
+            "extensions": [
+                "html",
+                "rom"
+            ]
+        }
     },
-    "build:js": {
-      "patterns": [
-        "runtime/*.js",
-        "build/*.js"
-      ],
-      "extensions": "js"
+    "author": "Matt Westcott",
+    "license": "ISC",
+    "devDependencies": {
+        "assemblyscript": "^0.19.6",
+        "npm-watch": "^0.10.0",
+        "svg-inline-loader": "^0.8.2",
+        "webpack": "^5.44.0",
+        "webpack-cli": "^4.7.2"
     },
-    "build:static": {
-      "patterns": [
-        "static/*.html",
-        "static/*.rom"
-      ],
-      "extensions": [
-        "html",
-        "rom"
-      ]
+    "dependencies": {
+        "@andreasremdt/simple-translator": "^2.0.3",
+        "file-dialog": "^0.0.8",
+        "jszip": "^3.7.1",
+        "pako": "^2.0.4"
     }
-  },
-  "author": "Matt Westcott",
-  "license": "ISC",
-  "devDependencies": {
-    "assemblyscript": "^0.19.6",
-    "npm-watch": "^0.10.0",
-    "svg-inline-loader": "^0.8.2",
-    "webpack": "^5.44.0",
-    "webpack-cli": "^4.7.2"
-  },
-  "dependencies": {
-    "file-dialog": "^0.0.8",
-    "jszip": "^3.7.1",
-    "pako": "^2.0.4"
-  }
 }

@@ -1,0 +1,41 @@
+{
+    "fileMenu": {
+        "file": "File",
+        "open": "Open...",
+        "autoLoadTapes": "Auto-load tapes",
+        "findGames": "Find Games"
+    },
+    "machineMenu": {
+        "machine": "Machine",
+        "spectrum48": "Spectrum 48K",
+        "spectrum128": "Spectrum 128K",
+        "pentagon": "Pentagon 128"
+    },
+    "displayMenu": {
+        "display": "Display",
+        "zoom100%": "100%",
+        "zoom200%": "200%",
+        "zoom300%": "300%",
+        "fullscreen": "Fullscreen"
+    },
+    "paletteMenu": {
+        "palette": "Palette",
+        "default": "Default",
+        "rgb": "RGB",
+        "yuv": "YUV"
+    },
+    "toolbar": {
+        "openFile": "Open File",
+        "reset": "Reset",
+        "pause": "Pause",
+        "unpause": "Unpause",
+        "enterFullscreen": "Enter full screen mode",
+        "exitFullscreen": "Exit full screen mode"
+    },
+    "searchScreen": {
+        "findGames": "Find games",
+        "search": "Search",
+        "searching": "Searching...",
+        "notLoadableFileFound": "No loadable file found"
+    }
+}

@@ -1,5 +1,4 @@
-export default [
-    {
+export default [{
         output: {
             filename: 'jsspeccy/jsspeccy.js',
         },
@@ -7,12 +6,15 @@ export default [
         entry: './runtime/jsspeccy.js',
         mode: 'production',
         module: {
-            rules: [
-                {
-                    test: /\.svg$/,
-                    loader: 'svg-inline-loader',
-                }
-            ],
+            rules: [{
+                test: /\.svg$/,
+                loader: 'svg-inline-loader',
+            }]
+        },
+        resolve: {
+            fallback: {
+                "fs": false
+            },
         }
     },
     {
