@@ -3,7 +3,8 @@
         "file": "File",
         "open": "Open...",
         "autoLoadTapes": "Auto-load tapes",
-        "findGames": "Find Games"
+        "findGames": "Find Games",
+        "instantTapeLoad": "Instant tape loading"
     },
     "machineMenu": {
         "machine": "Machine",
