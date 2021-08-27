@@ -3,7 +3,8 @@
         "file": "Fichero",
         "open": "Abrir...",
         "autoLoadTapes": "Auto-carga de cintas",
-        "findGames": "Buscar Juegos"
+        "findGames": "Buscar Juegos",
+        "instantTapeLoad": "Carga rápida de cintas"
     },
     "machineMenu": {
         "machine": "Máquina",

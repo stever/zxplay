@@ -6,9 +6,11 @@ let memory = null;
 let memoryData = null;
 let workerFrameData = null;
 let registerPairs = null;
+let tapePulses = null;
 
 let stopped = false;
 let tape = null;
+let tapeIsPlaying = false;
 
 const loadCore = (baseUrl) => {
     WebAssembly.instantiateStreaming(
@@ -19,6 +21,7 @@ const loadCore = (baseUrl) => {
         memoryData = new Uint8Array(memory.buffer);
         workerFrameData = memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
         registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
+        tapePulses = new Uint16Array(core.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
 
         postMessage({
             'message': 'ready',
@@ -132,6 +135,21 @@ onmessage = (e) => {
                 core.setAudioSamplesPerFrame(0);
             }
 
+            if (tape && tapeIsPlaying) {
+                const tapePulseBufferTstateCount = core.getTapePulseBufferTstateCount();
+                const tapePulseWriteIndex = core.getTapePulseWriteIndex();
+                const [newTapePulseWriteIndex, tstatesGenerated, tapeFinished] = tape.pulseGenerator.emitPulses(
+                    tapePulses, tapePulseWriteIndex, 80000 - tapePulseBufferTstateCount
+                );
+                core.setTapePulseBufferState(newTapePulseWriteIndex, tapePulseBufferTstateCount + tstatesGenerated);
+                if (tapeFinished) {
+                    tapeIsPlaying = false;
+                    postMessage({
+                        message: 'stoppedTape',
+                    });
+                }
+            }
+
             let status = core.runFrame();
             while (status) {
                 switch (status) {
@@ -196,6 +214,7 @@ onmessage = (e) => {
             break;
         case 'openTAPFile':
             tape = new TAPFile(e.data.data);
+            tapeIsPlaying = false;
             postMessage({
                 message: 'fileOpened',
                 id: e.data.id,
@@ -204,11 +223,32 @@ onmessage = (e) => {
             break;
         case 'openTZXFile':
             tape = new TZXFile(e.data.data);
+            tapeIsPlaying = false;
             postMessage({
                 message: 'fileOpened',
                 id: e.data.id,
                 mediaType: 'tape',
             });
+            break;
+        
+        case 'playTape':
+            if (tape && !tapeIsPlaying) {
+                tapeIsPlaying = true;
+                postMessage({
+                    message: 'playingTape',
+                });
+            }
+            break;
+        case 'stopTape':
+            if (tape && tapeIsPlaying) {
+                tapeIsPlaying = false;
+                postMessage({
+                    message: 'stoppedTape',
+                });
+            }
+            break;
+        case 'setTapeTraps':
+            core.setTapeTraps(e.data.value);
             break;
         default:
             console.log('message received by worker:', e.data);

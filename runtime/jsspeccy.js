@@ -16,6 +16,8 @@ import playIcon from './icons/play.svg';
 import pauseIcon from './icons/pause.svg';
 import fullscreenIcon from './icons/fullscreen.svg';
 import exitFullscreenIcon from './icons/exitfullscreen.svg';
+import tapePlayIcon from './icons/tape_play.svg';
+import tapePauseIcon from './icons/tape_pause.svg';
 
 import enTranslation from './i18n/en.json';
 import esTranslation from './i18n/es.json';
@@ -34,6 +36,8 @@ class Emulator extends EventEmitter {
         this.isInitiallyPaused = (!opts.autoStart);
         this.autoLoadTapes = opts.autoLoadTapes || false;
         this.tapeAutoLoadMode = opts.tapeAutoLoadMode || 'default'; // or usr0
+        this.tapeIsPlaying = false;
+        this.tapeTrapsEnabled = ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true;
 
         this.setPalette(opts.palette || 0);
 
@@ -51,6 +55,7 @@ class Emulator extends EventEmitter {
                 case 'ready':
                     this.loadRoms().then(() => {
                         this.setMachine(opts.machine || 128);
+                        this.setTapeTraps(this.tapeTrapsEnabled);
                         if (opts.openUrl) {
                             this.openUrlList(opts.openUrl).catch(err => {
                                 alert(err);
@@ -91,10 +96,24 @@ class Emulator extends EventEmitter {
                             '5': { 'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx' },
                         };
                         this.openUrl(new URL(TAPE_LOADERS_BY_MACHINE[this.machineType][this.tapeAutoLoadMode], scriptUrl));
+                        if (!this.tapeTrapsEnabled) {
+                            this.playTape();
+                        }
                     }
                     this.fileOpenPromiseResolutions[e.data.id]({
                         mediaType: e.data.mediaType,
                     });
+                    if (e.data.mediaType == 'tape') {
+                        this.emit('openedTapeFile');
+                    }
+                    break;
+                case 'playingTape':
+                    this.tapeIsPlaying = true;
+                    this.emit('playingTape');
+                    break;
+                case 'stoppedTape':
+                    this.tapeIsPlaying = false;
+                    this.emit('stoppedTape');
                     break;
                 default:
                     console.log('message received by host:', e.data);
@@ -339,6 +358,25 @@ class Emulator extends EventEmitter {
         this.autoLoadTapes = val;
         this.emit('setAutoLoadTapes', val);
     }
+    setTapeTraps(val) {
+        this.tapeTrapsEnabled = val;
+        this.worker.postMessage({
+            message: 'setTapeTraps',
+            value: val,
+        })
+        this.emit('setTapeTraps', val);
+    }
+
+    playTape() {
+        this.worker.postMessage({
+            message: 'playTape',
+        });
+    }
+    stopTape() {
+        this.worker.postMessage({
+            message: 'stopTape',
+        });
+    }
 
     exit() {
         this.pause();
@@ -358,7 +396,6 @@ window.JSSpeccy = (container, opts) => {
         defaultLanguage: 'en'
     });
     translator.add('en', enTranslation).add('es', esTranslation);
-
     let langs = new Set(['en', 'es']);
     if (!langs.has(opts.language.toLowerCase())) opts.language = 'en';
 
@@ -372,20 +409,22 @@ window.JSSpeccy = (container, opts) => {
         autoStart: opts.autoStart || false,
         autoLoadTapes: opts.autoLoadTapes || false,
         tapeAutoLoadMode: opts.tapeAutoLoadMode || 'default',
-
         openUrl: opts.openUrl,
+        tapeTrapsEnabled: ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true,
     });
     const ui = new UIController(container, emu, { zoom: opts.zoom || 1, sandbox: opts.sandbox });
 
+    const fileMenu = ui.menuBar.addMenu(translator.translateForKey('fileMenu.file', opts.language));
     if (!opts.sandbox) {
-        const fileMenu = ui.menuBar.addMenu(translator.translateForKey('fileMenu.file', opts.language));
         fileMenu.addItem(translator.translateForKey('fileMenu.open', opts.language), () => {
             openFileDialog();
+        });
+        fileMenu.addItem(translator.translateForKey('fileMenu.findGames', opts.language), () => {
+            openGameBrowser();
         });
         const autoLoadTapesMenuItem = fileMenu.addItem(translator.translateForKey('fileMenu.autoLoadTapes', opts.language), () => {
             emu.setAutoLoadTapes(!emu.autoLoadTapes);
         });
-
         const updateAutoLoadTapesCheckbox = () => {
             if (emu.autoLoadTapes) {
                 autoLoadTapesMenuItem.setCheckbox();
@@ -395,11 +434,20 @@ window.JSSpeccy = (container, opts) => {
         }
         emu.on('setAutoLoadTapes', updateAutoLoadTapesCheckbox);
         updateAutoLoadTapesCheckbox();
-
-        fileMenu.addItem(translator.translateForKey('fileMenu.findGames', opts.language), () => {
-            openGameBrowser();
-        });
     }
+
+    const tapeTrapsMenuItem = fileMenu.addItem(translator.translateForKey('fileMenu.instantTapeLoad', opts.language), () => {
+        emu.setTapeTraps(!emu.tapeTrapsEnabled);
+    });
+    const updateTapeTrapsCheckbox = () => {
+        if (emu.tapeTrapsEnabled) {
+            tapeTrapsMenuItem.setCheckbox();
+        } else {
+            tapeTrapsMenuItem.unsetCheckbox();
+        }
+    }
+    emu.on('setTapeTraps', updateTapeTrapsCheckbox);
+    updateTapeTrapsCheckbox();
 
     if (!opts.sandbox) {
         const machineMenu = ui.menuBar.addMenu(translator.translateForKey('machineMenu.machine', opts.language));
@@ -428,7 +476,6 @@ window.JSSpeccy = (container, opts) => {
                 machinePentagonItem.setBullet();
             }
         });
-
     }
 
     const displayMenu = ui.menuBar.addMenu(translator.translateForKey('displayMenu.display', opts.language));
@@ -502,6 +549,26 @@ window.JSSpeccy = (container, opts) => {
         pauseButton.setIcon(pauseIcon);
         pauseButton.setLabel(translator.translateForKey('toolbar.pause', opts.language));
     });
+    const tapeButton = ui.toolbar.addButton(tapePlayIcon, { label: 'Start tape' }, () => {
+        if (emu.tapeIsPlaying) {
+            emu.stopTape();
+        } else {
+            emu.playTape();
+        }
+    });
+    tapeButton.disable();
+    emu.on('openedTapeFile', () => {
+        tapeButton.enable();
+    });
+    emu.on('playingTape', () => {
+        tapeButton.setIcon(tapePauseIcon);
+        tapeButton.setLabel('Stop tape');
+    });
+    emu.on('stoppedTape', () => {
+        tapeButton.setIcon(tapePlayIcon);
+        tapeButton.setLabel('Start tape');
+    });
+
     const fullscreenButton = ui.toolbar.addButton(
         fullscreenIcon, { label: translator.translateForKey('toolbar.enterFullscreen', opts.language), align: 'right' },
         () => {
