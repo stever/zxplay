@@ -31,7 +31,9 @@
         "pause": "Pausa",
         "unpause": "Reproducir",
         "enterFullscreen": "Entrar en modo a pantalla completa",
-        "exitFullscreen": "Salir del modo a pantalla completa"
+        "exitFullscreen": "Salir del modo a pantalla completa",
+        "startTape": "Reproducir cinta",
+        "stopTape": "Parar cinta"
     },
     "searchScreen": {
         "findGames": "Buscar juegos",

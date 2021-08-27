@@ -31,7 +31,9 @@
         "pause": "Pause",
         "unpause": "Unpause",
         "enterFullscreen": "Enter full screen mode",
-        "exitFullscreen": "Exit full screen mode"
+        "exitFullscreen": "Exit full screen mode",
+        "startTape": "Start tape",
+        "stopTape": "Stop tape"
     },
     "searchScreen": {
         "findGames": "Find games",

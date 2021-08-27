@@ -396,8 +396,7 @@ window.JSSpeccy = (container, opts) => {
         defaultLanguage: 'en'
     });
     translator.add('en', enTranslation).add('es', esTranslation);
-    let langs = new Set(['en', 'es']);
-    if (!langs.has(opts.language.toLowerCase())) opts.language = 'en';
+    if (!['en', 'es'].includes(opts.language.toLowerCase())) opts.language = 'en';
 
     const canvas = document.createElement('canvas');
     canvas.width = 320;
@@ -549,7 +548,7 @@ window.JSSpeccy = (container, opts) => {
         pauseButton.setIcon(pauseIcon);
         pauseButton.setLabel(translator.translateForKey('toolbar.pause', opts.language));
     });
-    const tapeButton = ui.toolbar.addButton(tapePlayIcon, { label: 'Start tape' }, () => {
+    const tapeButton = ui.toolbar.addButton(tapePlayIcon, { label: translator.translateForKey('toolbar.startTape', opts.language) }, () => {
         if (emu.tapeIsPlaying) {
             emu.stopTape();
         } else {
@@ -562,11 +561,11 @@ window.JSSpeccy = (container, opts) => {
     });
     emu.on('playingTape', () => {
         tapeButton.setIcon(tapePauseIcon);
-        tapeButton.setLabel('Stop tape');
+        tapeButton.setLabel(translator.translateForKey('toolbar.stopTape', opts.language));
     });
     emu.on('stoppedTape', () => {
         tapeButton.setIcon(tapePlayIcon);
-        tapeButton.setLabel('Start tape');
+        tapeButton.setLabel(translator.translateForKey('toolbar.startTape', opts.language));
     });
 
     const fullscreenButton = ui.toolbar.addButton(
