@@ -1,0 +1,41 @@
+{
+    "fileMenu": {
+        "file": "Fichero",
+        "open": "Abrir...",
+        "autoLoadTapes": "Auto-carga de cintas",
+        "findGames": "Buscar Juegos"
+    },
+    "machineMenu": {
+        "machine": "Máquina",
+        "spectrum48": "Spectrum 48K",
+        "spectrum128": "Spectrum 128K",
+        "pentagon": "Pentagon 128"
+    },
+    "displayMenu": {
+        "display": "Pantalla",
+        "zoom100%": "100%",
+        "zoom200%": "200%",
+        "zoom300%": "300%",
+        "fullscreen": "Pantalla completa"
+    },
+    "paletteMenu": {
+        "palette": "Paleta",
+        "default": "Por defecto",
+        "rgb": "RGB",
+        "yuv": "YUV"
+    },
+    "toolbar": {
+        "openFile": "Abrir fichero",
+        "reset": "Reinicio",
+        "pause": "Pausa",
+        "unpause": "Reproducir",
+        "enterFullscreen": "Entrar en modo a pantalla completa",
+        "exitFullscreen": "Salir del modo a pantalla completa"
+    },
+    "searchScreen": {
+        "findGames": "Buscar juegos",
+        "search": "Buscar",
+        "searching": "Buscando...",
+        "notLoadableFileFound": "No se ha encontrado un fichero que se pueda cargar."
+    }
+}

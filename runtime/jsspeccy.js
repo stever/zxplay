@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import fileDialog from 'file-dialog';
 import JSZip from 'jszip';
+import Translator from '@andreasremdt/simple-translator';
 
 import { DisplayHandler } from './render.js';
 import { UIController } from './ui.js';
@@ -18,6 +19,9 @@ import exitFullscreenIcon from './icons/exitfullscreen.svg';
 import tapePlayIcon from './icons/tape_play.svg';
 import tapePauseIcon from './icons/tape_pause.svg';
 
+import enTranslation from './i18n/en.json';
+import esTranslation from './i18n/es.json';
+
 const scriptUrl = document.currentScript.src;
 
 class Emulator extends EventEmitter {
@@ -31,9 +35,11 @@ class Emulator extends EventEmitter {
         this.isRunning = false;
         this.isInitiallyPaused = (!opts.autoStart);
         this.autoLoadTapes = opts.autoLoadTapes || false;
-        this.tapeAutoLoadMode = opts.tapeAutoLoadMode || 'default';  // or usr0
+        this.tapeAutoLoadMode = opts.tapeAutoLoadMode || 'default'; // or usr0
         this.tapeIsPlaying = false;
         this.tapeTrapsEnabled = ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true;
+
+        this.setPalette(opts.palette || 0);
 
         this.msPerFrame = 20;
 
@@ -45,7 +51,7 @@ class Emulator extends EventEmitter {
         this.fileOpenPromiseResolutions = {};
 
         this.worker.onmessage = (e) => {
-            switch(e.data.message) {
+            switch (e.data.message) {
                 case 'ready':
                     this.loadRoms().then(() => {
                         this.setMachine(opts.machine || 128);
@@ -85,9 +91,9 @@ class Emulator extends EventEmitter {
                 case 'fileOpened':
                     if (e.data.mediaType == 'tape' && this.autoLoadTapes) {
                         const TAPE_LOADERS_BY_MACHINE = {
-                            '48': {'default': 'tapeloaders/tape_48.szx', 'usr0': 'tapeloaders/tape_48.szx'},
-                            '128': {'default': 'tapeloaders/tape_128.szx', 'usr0': 'tapeloaders/tape_128_usr0.szx'},
-                            '5': {'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx'},
+                            '48': { 'default': 'tapeloaders/tape_48.szx', 'usr0': 'tapeloaders/tape_48.szx' },
+                            '128': { 'default': 'tapeloaders/tape_128.szx', 'usr0': 'tapeloaders/tape_128_usr0.szx' },
+                            '5': { 'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx' },
                         };
                         this.openUrl(new URL(TAPE_LOADERS_BY_MACHINE[this.machineType][this.tapeAutoLoadMode], scriptUrl));
                         if (!this.tapeTrapsEnabled) {
@@ -198,6 +204,15 @@ class Emulator extends EventEmitter {
         }
     };
 
+    getPalette() {
+        return this.displayHandler.paletteSelection;
+    }
+
+    setPalette(palette) {
+        this.displayHandler.setPalette(palette);
+        this.emit('setPalette', this.displayHandler.paletteSelection);
+    }
+
     setMachine(type) {
         if (type != 128 && type != 5) type = 48;
         this.worker.postMessage({
@@ -209,7 +224,7 @@ class Emulator extends EventEmitter {
     }
 
     reset() {
-        this.worker.postMessage({message: 'reset'});
+        this.worker.postMessage({ message: 'reset' });
     }
 
     loadSnapshot(snapshot) {
@@ -290,7 +305,7 @@ class Emulator extends EventEmitter {
                     if (path.startsWith('__MACOSX/')) return;
                     const opener = this.getFileOpener(path);
                     if (opener) {
-                        const boundOpener = async () => {
+                        const boundOpener = async() => {
                             const buf = await file.async('arraybuffer');
                             return opener(buf);
                         };
@@ -313,7 +328,7 @@ class Emulator extends EventEmitter {
         const opener = this.getFileOpener(file.name);
         if (opener) {
             const buf = await file.arrayBuffer();
-            return opener(buf).catch(err => {alert(err);});
+            return opener(buf).catch(err => { alert(err); });
         } else {
             throw 'Unrecognised file type: ' + file.name;
         }
@@ -374,29 +389,40 @@ window.JSSpeccy = (container, opts) => {
     // let benchmarkRenderCount = 0;
     opts = opts || {};
 
+    opts.sandbox = opts.sandbox || false;
+    opts.language = opts.language || 'en';
+
+    const translator = new Translator({
+        defaultLanguage: 'en'
+    });
+    translator.add('en', enTranslation).add('es', esTranslation);
+    let langs = new Set(['en', 'es']);
+    if (!langs.has(opts.language.toLowerCase())) opts.language = 'en';
+
     const canvas = document.createElement('canvas');
     canvas.width = 320;
     canvas.height = 240;
 
     const emu = new Emulator(canvas, {
         machine: opts.machine || 128,
+        palette: opts.palette || 0,
         autoStart: opts.autoStart || false,
         autoLoadTapes: opts.autoLoadTapes || false,
         tapeAutoLoadMode: opts.tapeAutoLoadMode || 'default',
         openUrl: opts.openUrl,
         tapeTrapsEnabled: ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true,
     });
-    const ui = new UIController(container, emu, {zoom: opts.zoom || 1, sandbox: opts.sandbox});
+    const ui = new UIController(container, emu, { zoom: opts.zoom || 1, sandbox: opts.sandbox });
 
-    const fileMenu = ui.menuBar.addMenu('File');
+    const fileMenu = ui.menuBar.addMenu(translator.translateForKey('fileMenu.file', opts.language));
     if (!opts.sandbox) {
-        fileMenu.addItem('Open...', () => {
+        fileMenu.addItem(translator.translateForKey('fileMenu.open', opts.language), () => {
             openFileDialog();
         });
-        fileMenu.addItem('Find games...', () => {
+        fileMenu.addItem(translator.translateForKey('fileMenu.findGames', opts.language), () => {
             openGameBrowser();
         });
-        const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
+        const autoLoadTapesMenuItem = fileMenu.addItem(translator.translateForKey('fileMenu.autoLoadTapes', opts.language), () => {
             emu.setAutoLoadTapes(!emu.autoLoadTapes);
         });
         const updateAutoLoadTapesCheckbox = () => {
@@ -410,10 +436,9 @@ window.JSSpeccy = (container, opts) => {
         updateAutoLoadTapesCheckbox();
     }
 
-    const tapeTrapsMenuItem = fileMenu.addItem('Instant tape loading', () => {
+    const tapeTrapsMenuItem = fileMenu.addItem(translator.translateForKey('fileMenu.instantTapeLoad', opts.language), () => {
         emu.setTapeTraps(!emu.tapeTrapsEnabled);
     });
-
     const updateTapeTrapsCheckbox = () => {
         if (emu.tapeTrapsEnabled) {
             tapeTrapsMenuItem.setCheckbox();
@@ -424,24 +449,43 @@ window.JSSpeccy = (container, opts) => {
     emu.on('setTapeTraps', updateTapeTrapsCheckbox);
     updateTapeTrapsCheckbox();
 
-    const machineMenu = ui.menuBar.addMenu('Machine');
-    const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
-        emu.setMachine(48);
-    });
-    const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
-        emu.setMachine(128);
-    });
-    const machinePentagonItem = machineMenu.addItem('Pentagon 128', () => {
-        emu.setMachine(5);
-    });
-    const displayMenu = ui.menuBar.addMenu('Display');
+    if (!opts.sandbox) {
+        const machineMenu = ui.menuBar.addMenu(translator.translateForKey('machineMenu.machine', opts.language));
+        const machine48Item = machineMenu.addItem(translator.translateForKey('machineMenu.spectrum48', opts.language), () => {
+            emu.setMachine(48);
+        });
+        const machine128Item = machineMenu.addItem(translator.translateForKey('machineMenu.spectrum128', opts.language), () => {
+            emu.setMachine(128);
+        });
+        const machinePentagonItem = machineMenu.addItem(translator.translateForKey('machineMenu.pentagon', opts.language), () => {
+            emu.setMachine(5);
+        });
+
+        emu.on('setMachine', (type) => {
+            if (type == 48) {
+                machine48Item.setBullet();
+                machine128Item.unsetBullet();
+                machinePentagonItem.unsetBullet();
+            } else if (type == 128) {
+                machine48Item.unsetBullet();
+                machine128Item.setBullet();
+                machinePentagonItem.unsetBullet();
+            } else { // pentagon
+                machine48Item.unsetBullet();
+                machine128Item.unsetBullet();
+                machinePentagonItem.setBullet();
+            }
+        });
+    }
+
+    const displayMenu = ui.menuBar.addMenu(translator.translateForKey('displayMenu.display', opts.language));
 
     const zoomItemsBySize = {
-        1: displayMenu.addItem('100%', () => ui.setZoom(1)),
-        2: displayMenu.addItem('200%', () => ui.setZoom(2)),
-        3: displayMenu.addItem('300%', () => ui.setZoom(3)),
+        1: displayMenu.addItem(translator.translateForKey('displayMenu.zoom100%', opts.language), () => ui.setZoom(1)),
+        2: displayMenu.addItem(translator.translateForKey('displayMenu.zoom200%', opts.language), () => ui.setZoom(2)),
+        3: displayMenu.addItem(translator.translateForKey('displayMenu.zoom300%', opts.language), () => ui.setZoom(3)),
     }
-    const fullscreenItem = displayMenu.addItem('Fullscreen', () => {
+    const fullscreenItem = displayMenu.addItem(translator.translateForKey('displayMenu.fullscreen', opts.language), () => {
         ui.enterFullscreen();
     })
     const setZoomCheckbox = (factor) => {
@@ -461,35 +505,36 @@ window.JSSpeccy = (container, opts) => {
             }
         }
     }
-
     ui.on('setZoom', setZoomCheckbox);
     setZoomCheckbox(ui.zoom);
 
-    emu.on('setMachine', (type) => {
-        if (type == 48) {
-            machine48Item.setBullet();
-            machine128Item.unsetBullet();
-            machinePentagonItem.unsetBullet();
-        } else if (type == 128) {
-            machine48Item.unsetBullet();
-            machine128Item.setBullet();
-            machinePentagonItem.unsetBullet();
-        } else { // pentagon
-            machine48Item.unsetBullet();
-            machine128Item.unsetBullet();
-            machinePentagonItem.setBullet();
+    const paletteMenu = ui.menuBar.addMenu(translator.translateForKey('paletteMenu.palette', opts.language));
+    const paletteSelection = {
+        0: paletteMenu.addItem(translator.translateForKey('paletteMenu.default', opts.language), () => emu.setPalette(0)),
+        1: paletteMenu.addItem(translator.translateForKey('paletteMenu.rgb', opts.language), () => emu.setPalette(1)),
+        2: paletteMenu.addItem(translator.translateForKey('paletteMenu.yuv', opts.language), () => emu.setPalette(2)),
+    }
+    const setPaletteCheckbox = (palette) => {
+        for (let i in paletteSelection) {
+            if (parseInt(i) == palette) {
+                paletteSelection[i].setBullet();
+            } else {
+                paletteSelection[i].unsetBullet();
+            }
         }
-    });
+    }
+    emu.on('setPalette', setPaletteCheckbox);
+    setPaletteCheckbox(emu.getPalette());
 
     if (!opts.sandbox) {
-        ui.toolbar.addButton(openIcon, {label: 'Open file'}, () => {
+        ui.toolbar.addButton(openIcon, { label: translator.translateForKey('toolbar.openFile', opts.language) }, () => {
             openFileDialog();
         });
     }
-    ui.toolbar.addButton(resetIcon, {label: 'Reset'}, () => {
+    ui.toolbar.addButton(resetIcon, { label: translator.translateForKey('toolbar.reset', opts.language) }, () => {
         emu.reset();
     });
-    const pauseButton = ui.toolbar.addButton(playIcon, {label: 'Unpause'}, () => {
+    const pauseButton = ui.toolbar.addButton(playIcon, { label: translator.translateForKey('toolbar.unpause', opts.language) }, () => {
         if (emu.isRunning) {
             emu.pause();
         } else {
@@ -498,13 +543,13 @@ window.JSSpeccy = (container, opts) => {
     });
     emu.on('pause', () => {
         pauseButton.setIcon(playIcon);
-        pauseButton.setLabel('Unpause');
+        pauseButton.setLabel(translator.translateForKey('toolbar.unpause', opts.language));
     });
     emu.on('start', () => {
         pauseButton.setIcon(pauseIcon);
-        pauseButton.setLabel('Pause');
+        pauseButton.setLabel(translator.translateForKey('toolbar.pause', opts.language));
     });
-    const tapeButton = ui.toolbar.addButton(tapePlayIcon, {label: 'Start tape'}, () => {
+    const tapeButton = ui.toolbar.addButton(tapePlayIcon, { label: 'Start tape' }, () => {
         if (emu.tapeIsPlaying) {
             emu.stopTape();
         } else {
@@ -525,8 +570,7 @@ window.JSSpeccy = (container, opts) => {
     });
 
     const fullscreenButton = ui.toolbar.addButton(
-        fullscreenIcon,
-        {label: 'Enter full screen mode', align: 'right'},
+        fullscreenIcon, { label: translator.translateForKey('toolbar.enterFullscreen', opts.language), align: 'right' },
         () => {
             ui.toggleFullscreen();
         }
@@ -535,10 +579,10 @@ window.JSSpeccy = (container, opts) => {
     ui.on('setZoom', (factor) => {
         if (factor == 'fullscreen') {
             fullscreenButton.setIcon(exitFullscreenIcon);
-            fullscreenButton.setLabel('Exit full screen mode');
+            fullscreenButton.setLabel(translator.translateForKey('toolbar.exitFullscreen', opts.language));
         } else {
             fullscreenButton.setIcon(fullscreenIcon);
-            fullscreenButton.setLabel('Enter full screen mode');
+            fullscreenButton.setLabel(translator.translateForKey('toolbar.enterFullscreen', opts.language));
         }
     });
 
@@ -547,7 +591,7 @@ window.JSSpeccy = (container, opts) => {
             const file = files[0];
             emu.openFile(file).then(() => {
                 if (emu.isInitiallyPaused) emu.start();
-            }).catch((err) => {alert(err);});
+            }).catch((err) => { alert(err); });
         });
     }
 
@@ -555,10 +599,10 @@ window.JSSpeccy = (container, opts) => {
         emu.pause();
         const body = ui.showDialog();
         body.innerHTML = `
-            <label>Find games</label>
+            <label>` + translator.translateForKey('searchScreen.findGames', opts.language) + `</label>
             <form>
                 <input type="search">
-                <button type="submit">Search</button>
+                <button type="submit">` + translator.translateForKey('searchScreen.search', opts.language) + `</button>
             </form>
             <div class="results">
             </div>
@@ -570,7 +614,7 @@ window.JSSpeccy = (container, opts) => {
 
         searchForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            searchButton.innerText = 'Searching...';
+            searchButton.innerText = translator.translateForKey('searchScreen.searching', opts.language);
             const searchTerm = input.value.replace(/[^\w\s\-\']/, '');
 
             const encodeParam = (key, val) => {
@@ -578,17 +622,17 @@ window.JSSpeccy = (container, opts) => {
             }
 
             const searchUrl = (
-                'https://archive.org/advancedsearch.php?'
-                + encodeParam('q', 'collection:softwarelibrary_zx_spectrum title:"' + searchTerm + '"')
-                + '&' + encodeParam('fl[]', 'creator')
-                + '&' + encodeParam('fl[]', 'identifier')
-                + '&' + encodeParam('fl[]', 'title')
-                + '&' + encodeParam('rows', '50')
-                + '&' + encodeParam('page', '1')
-                + '&' + encodeParam('output', 'json')
+                'https://archive.org/advancedsearch.php?' +
+                encodeParam('q', 'collection:softwarelibrary_zx_spectrum title:"' + searchTerm + '"') +
+                '&' + encodeParam('fl[]', 'creator') +
+                '&' + encodeParam('fl[]', 'identifier') +
+                '&' + encodeParam('fl[]', 'title') +
+                '&' + encodeParam('rows', '50') +
+                '&' + encodeParam('page', '1') +
+                '&' + encodeParam('output', 'json')
             )
             fetch(searchUrl).then(response => {
-                searchButton.innerText = 'Search';
+                searchButton.innerText = translator.translateForKey('searchScreen.search', opts.language);
                 return response.json();
             }).then(data => {
                 resultsContainer.innerHTML = '<ul></ul><p>- powered by <a href="https://archive.org/">Internet Archive</a></p>';
@@ -616,7 +660,7 @@ window.JSSpeccy = (container, opts) => {
                                 }
                             });
                             if (!chosenFilename) {
-                                alert('No loadable file found');
+                                alert(translator.translateForKey('searchScreen.notLoadableFileFound', opts.language));
                             } else {
                                 const finalUrl = 'https://cors.archive.org/cors/' + result.identifier + '/' + chosenFilename;
                                 emu.openUrl(finalUrl).catch((err) => {
@@ -652,15 +696,16 @@ window.JSSpeccy = (container, opts) => {
     */
 
     return {
-        setZoom: (zoom) => {ui.setZoom(zoom);},
-        toggleFullscreen: () => {ui.toggleFullscreen();},
-        enterFullscreen: () => {ui.enterFullscreen();},
-        exitFullscreen: () => {ui.exitFullscreen();},
-        setMachine: (model) => {emu.setMachine(model);},
-        openFileDialog: () => {openFileDialog();},
+        setZoom: (zoom) => { ui.setZoom(zoom); },
+        toggleFullscreen: () => { ui.toggleFullscreen(); },
+        enterFullscreen: () => { ui.enterFullscreen(); },
+        exitFullscreen: () => { ui.exitFullscreen(); },
+        setMachine: (model) => { emu.setMachine(model); },
+        setPalette: (palette) => { emu.setPalette(palette); },
+        openFileDialog: () => { openFileDialog(); },
         openUrl: (url) => {
-            emu.openUrl(url).catch((err) => {alert(err);});
+            emu.openUrl(url).catch((err) => { alert(err); });
         },
-        exit: () => {exit();},
+        exit: () => { exit(); },
     };
 };

@@ -8,8 +8,10 @@ export class CanvasRenderer {
         this.imageData = this.ctx.getImageData(0, 0, 320, 240);
         this.pixels = new Uint32Array(this.imageData.data.buffer);
         this.flashPhase = 0;
+        this.paletteOffset = 0;
 
         this.palette = new Uint32Array([
+            /* Original Palette */
             /* RGBA dark */
             0x000000ff,
             0x2030c0ff,
@@ -27,21 +29,58 @@ export class CanvasRenderer {
             0x50e010ff,
             0x50e0ffff,
             0xffe850ff,
-            0xffffffff
+            0xffffffff,
+            /* RGB Palette */
+            /* RGBA dark */
+            0x000000ff,
+            0x0000ddff,
+            0xdd0000ff,
+            0xdd00ddff,
+            0x00dd00ff,
+            0x00ddddff,
+            0xdddd00ff,
+            0xddddddff,
+            /* RGBA bright */
+            0x000000ff,
+            0x0000ffff,
+            0xff0000ff,
+            0xff00ffff,
+            0x00ff00ff,
+            0x00ffffff,
+            0xffff00ff,
+            0xffffffff,
+            /* YUV Palette */
+            /* RGBA dark */
+            0x060800ff,
+            0x0d13a7ff,
+            0xbd0707ff,
+            0xc312afff,
+            0x07ba0cff,
+            0x0dc6b4ff,
+            0xbcb914ff,
+            0xc2c4bcff,
+            /* RGBA bright */
+            0x060800ff,
+            0x161cb0ff,
+            0xce1818ff,
+            0xdc2cc8ff,
+            0x28dc2dff,
+            0x36efdeff,
+            0xeeeb46ff,
+            0xfdfff7ff
         ]);
 
         const testUint8 = new Uint8Array(new Uint16Array([0x8000]).buffer);
         const isLittleEndian = (testUint8[0] === 0);
         if (isLittleEndian) {
             /* need to reverse the byte ordering of palette */
-            for (let i = 0; i < 16; i++) {
+            for (let i = 0; i < 16 * 3; i++) {
                 const color = this.palette[i];
                 this.palette[i] = (
-                    (color << 24) & 0xff000000)
-                    | ((color << 8) & 0xff0000)
-                    | ((color >>> 8) & 0xff00)
-                    | ((color >>> 24) & 0xff
-                );
+                        (color << 24) & 0xff000000) |
+                    ((color << 8) & 0xff0000) |
+                    ((color >>> 8) & 0xff00) |
+                    ((color >>> 24) & 0xff);
             }
         }
     }
@@ -53,7 +92,7 @@ export class CanvasRenderer {
         /* top border */
         for (let y = 0; y < 24; y++) {
             for (let x = 0; x < 160; x++) {
-                let border = this.palette[frameBytes[bufferPtr++]]
+                let border = this.palette[frameBytes[bufferPtr++] + this.paletteOffset]
                 this.pixels[pixelPtr++] = border;
                 this.pixels[pixelPtr++] = border;
             }
@@ -62,7 +101,7 @@ export class CanvasRenderer {
         for (let y = 0; y < 192; y++) {
             /* left border */
             for (let x = 0; x < 16; x++) {
-                let border = this.palette[frameBytes[bufferPtr++]]
+                let border = this.palette[frameBytes[bufferPtr++] + this.paletteOffset]
                 this.pixels[pixelPtr++] = border;
                 this.pixels[pixelPtr++] = border;
             }
@@ -73,11 +112,11 @@ export class CanvasRenderer {
                 let ink, paper;
                 if ((attr & 0x80) && (this.flashPhase & 0x10)) {
                     // reverse ink and paper
-                    paper = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
-                    ink = this.palette[(attr & 0x78) >> 3];
+                    paper = this.palette[(((attr & 0x40) >> 3) | (attr & 0x07)) + this.paletteOffset];
+                    ink = this.palette[((attr & 0x78) >> 3) + this.paletteOffset];
                 } else {
-                    ink = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
-                    paper = this.palette[(attr & 0x78) >> 3];
+                    ink = this.palette[(((attr & 0x40) >> 3) | (attr & 0x07)) + this.paletteOffset];
+                    paper = this.palette[((attr & 0x78) >> 3) + this.paletteOffset];
                 }
                 for (let i = 0; i < 8; i++) {
                     this.pixels[pixelPtr++] = (bitmap & 0x80) ? ink : paper;
@@ -86,7 +125,7 @@ export class CanvasRenderer {
             }
             /* right border */
             for (let x = 0; x < 16; x++) {
-                let border = this.palette[frameBytes[bufferPtr++]]
+                let border = this.palette[frameBytes[bufferPtr++] + this.paletteOffset]
                 this.pixels[pixelPtr++] = border;
                 this.pixels[pixelPtr++] = border;
             }
@@ -94,7 +133,7 @@ export class CanvasRenderer {
         /* bottom border */
         for (let y = 0; y < 24; y++) {
             for (let x = 0; x < 160; x++) {
-                let border = this.palette[frameBytes[bufferPtr++]]
+                let border = this.palette[frameBytes[bufferPtr++] + this.paletteOffset]
                 this.pixels[pixelPtr++] = border;
                 this.pixels[pixelPtr++] = border;
             }
@@ -124,6 +163,13 @@ export class DisplayHandler {
         this.bufferBeingShown = null;
         this.bufferAwaitingShow = null;
         this.lockedBuffer = null;
+        this.paletteSelection = 0;
+    }
+
+    setPalette(paletteSel) {
+        if (paletteSel < 0 || paletteSel > 2) paletteSel = 0;
+        this.paletteSelection = paletteSel;
+        this.renderer.paletteOffset = paletteSel * 16;
     }
 
     frameCompleted(newFrameBuffer) {

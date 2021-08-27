@@ -1,7 +1,7 @@
 # JSSpeccy 3
 
 A ZX Spectrum emulator for the browser.
-See Addendum for the motivation of this fork.
+This is a fork I made to address some gripes I had with the mainstream version. See Addendum
 
 ## Features
 
@@ -13,7 +13,6 @@ See Addendum for the motivation of this fork.
 * Loads TZX and TAP tape images (via traps only)
 * Loads any of the above files from inside a ZIP file
 * 100% / 200% / 300% and fullscreen display modes
-* Three different color schemes
 
 ## Implementation notes
 
@@ -27,7 +26,7 @@ This is a personal project, created for my own enjoyment, and my act of publishi
 
 ## Embedding
 
-JSSpeccy 3 is designed with embedding in mind. To include it in your own site, download [a release archive](https://github.com/cronomantic/jsspeccy3/releases) and copy the contents of the `jsspeccy` folder somewhere web-accessible. Be sure to keep the .js and .wasm files and the subdirectories in the same place relative to jsspeccy.js.
+JSSpeccy 3 is designed with embedding in mind. To include it in your own site, download [a release archive](https://github.com/gasman/jsspeccy3/releases) and copy the contents of the `jsspeccy` folder somewhere web-accessible. Be sure to keep the .js and .wasm files and the subdirectories in the same place relative to jsspeccy.js.
 
 In the `<head>` of your HTML page, include the tag
 
@@ -56,12 +55,10 @@ The available configuration options are:
 * `autoLoadTapes`: if true, any tape files opened (either manually or through the openUrl option) will be loaded automatically without the user having to enter LOAD "" or select the Tape Loader menu option.
 * `tapeAutoLoadMode`: specifies the mode that the machine should be set to before auto-loading tape files. When set to 'default' (the default), this is equivalent to selecting the Tape Loader menu option on machines that support it; when set to 'usr0', this is equivalent to entering 'usr0' in 128 BASIC then LOAD "" from the resulting 48K BASIC prompt (which leaves 128K memory paging available without the extra housekeeping of the 128K ROM - this mode is commonly used for launching demos).
 * `machine`: specifies the machine to emulate. Can be `48` (for a 48K Spectrum), `128` (for a 128K Spectrum), or `5` (for a Pentagon 128).
-* `palette`: specifies the color palette to use. Can be `0` (the standard palette defined by the original author), `1` (for the RGB palette of the 128k and upwards models), or `2` (for the YUV palette of the Spectrum 16K, 14K, and Plus, calculated from the voltages exposed in Chris Smith’s book).
+* `palette`: specifies the color palette to use. Can be `0` (the standard palette defined by the author), `1` (for the RGB palette of the 128k and upwards models), or `2` (for the YUV palette of the Spectrum 16K, 14K, and Plus, calculated from the voltages exposed in Chris Smith’s book).
 * `openUrl`: specifies a URL, or an array of URLs, to a file (or files) to load on startup, in any supported snapshot, tape or archive format. Standard browser security restrictions apply for loading remote files: if the URL being loaded is not on the same domain as the calling page, it must serve [CORS HTTP headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) to be loadable.
 * `zoom`: specifies the size of the emulator window; 1 for 100% size (one Spectrum pixel per screen pixel), 2 for 200% size and so on.
 * `sandbox`: if true, all UI options for opening a new file are disabled - useful if you're showcasing a specific bit of Spectrum software on your page.
-* `tapeTrapsEnabled`: if true (the default), the emulator will recognise when the tape loading routine in the ROM is called, and load tape files instantly instead.
-* `language`: Selects the language for the UI, currently `en` for English and `es` for Spanish.
 
 For additional JavaScript hackery, the return value of the JSSpeccy function call is an object exposing a number of functions for controlling the running emulator:
 
@@ -86,27 +83,23 @@ For additional JavaScript hackery, the return value of the JSSpeccy function cal
 
 First of all, I am very impressed with this piece of work and congratulations are in order to Matt Wescott for his efforts on this emulator.
 
-However, I decided to make a 'soft fork' because I have some gripes with the palette elected by Wescott to represent the ZX Spectrum colors.
-In my humble opinion, the most faithful one is the one described [here](https://en.wikipedia.org/wiki/ZX_Spectrum_graphic_modes#Colour_palette), and most of my acquaintances of the scene share the same sentiment.
-The RGB values described on the previous link are most likely calculated measuring voltages on the RGB output of the 128k models, since the ULAs of those systems generate RGBI signals that later are encoded to composite by the TEA2000 IC.
-Those are the colors that most emulators use and most people are used to; so with that motivation, I decided to make this fork.
-However, since your mileage may vary, I made the original palette also selectable if you like it more.
+However, I decided to make a 'soft fork' because I have some gripes with the palette elected by Wescott.
+I regard it not very faithful to the one employed on the [ZX Spectrum](https://en.wikipedia.org/wiki/ZX_Spectrum_graphic_modes#Colour_palette), and most of my acquaintances of the scene share the same opinion.
+This palette is most likely calculated measuring voltages on the RGB output of the 128k models, since the ULAs of those models generate RGBI signals that later are encoded to composite by the TEA2000 encoder.
+Those are the colors that most emulators use and most people are used to, but as with anything, your mileage may vary.
+For this reason, I decided to create this fork, to use this palette, but the the one of the original version can still be selected if you like it more.
 
 The ULA of the previous models to the 128k generated the composite signal directly, and generating the colors on composite video is a tricky thing.
-The colors are not generated as RGB, but as [YUV](https://en.wikipedia.org/wiki/YUV), a different color space.
+The colors are not generated as RGB, but as [YUV](https://en.wikipedia.org/wiki/YUV), a different color space than RGB.
 So, I also decided to add a palette converted from the YUV values described on [Chris Smith's excellent book](http://www.zxdesign.info/book/) and translated to RGB.
 
-In short, you have three possible color combinations to choose from on the upper menu. I also added the corresponding configuration option and Javascript function to select the palette outside the emulator. All is documented upwards.
+Finally, I don't like the bilineal filtering the canvas seems to be applying when the screen is scaled, so I decided to turn it off on non-full screen mode.
 
-Also, I have added translations to the texts on the emulator if you need to localize your instance. It applies only on loading, there is not external function or internal menu to change the language on the fly.
+This is a weekend project to make this great work more to my liking so I will not develop it further more.
+I will endevour to keep it in line with Wescott's main project, but don't expect much on that regard.
+If Wescott decides to merge some of this changes (he is welcome to do so), then this fork will be of no more use.
 
-Finally, I don't like the bilineal filtering (blurry image) the canvas seems to be applying when the screen is scaled, so I decided to turn it off for non-fullscreen mode.
-
-Be warned that this is just a fun little weekend project, so and I will not develop it further more.
-I will try to keep it in line with Wescott's main project, but I don't make any promises on that regard.
-What is stated on the Contributions section still apply here.
-
-Hope this could be of some use for anyone.
+Hope you enjoy it regardless.
 
 ## Licence
 

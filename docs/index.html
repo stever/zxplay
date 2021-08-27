@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>JSSpeccy 3</title>
+    <script src="jsspeccy/jsspeccy.js"></script>
+    <style>
+        body {
+            font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+            background-color: #444;
+            color: #eee;
+            text-align: center;
+        }
+        
+        h1 {
+            margin-bottom: 0;
+        }
+        
+        h2 {
+            margin-top: 0;
+        }
+        
+        #jsspeccy {
+            text-align: left;
+            width: 640px;
+            margin: auto;
+            color: #111;
+            background-color: white;
+        }
+        
+        footer {
+            margin-top: 1em;
+            font-size: 0.8em;
+        }
+        
+        footer a {
+            color: lightskyblue;
+        }
+        
+        footer a:visited {
+            color: lightsteelblue;
+        }
+    </style>
+</head>
+
+<body onload="emu = JSSpeccy(document.getElementById('jsspeccy'), {zoom: 2, palette:1, sandbox: false, tapeAutoLoadMode: 'usr0'})">
+    <h1>JSSpeccy 3</h1>
+    <h2>a ZX Spectrum emulator in the browser (fork with palettes)</h2>
+    <div id="jsspeccy"></div>
+    <footer>Forked by Cronomantic. For source code, downloads, embedding on your own site: <a href="https://github.com/cronomantic/jsspeccy3">JSSpeccy 3 Fork on GitHub</a></footer>
+    <footer>Original author <a href="https://twitter.com/gasmanic/">Matt Westcott</a>. Original source code: <a href="https://github.com/gasman/jsspeccy3">JSSpeccy 3 on GitHub</a>.</footer>
+</body>
+
+</html>
