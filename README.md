@@ -82,15 +82,28 @@ For additional JavaScript hackery, the return value of the JSSpeccy function cal
 * `emu.openUrl(url)` - open the file at the given URL
 * `emu.exit()` - immediately stop the emulator and remove it from the document
 
+By default, the navigators usually apply a smoothing algorithm when a canvas is scaled and the result is a blurry image.
+
+If you don't like that and prefer a pixelated look when the window is scaled, use these hints on the stylesheet for the container of the emulator:
+
+```css
+    #jsspeccy {
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+    }
+```
+
 ## Addendum
 
 First of all, I am very impressed with this piece of work and congratulations are in order to Matt Wescott for his efforts on this emulator.
 
 However, I decided to make a 'soft fork' because I have some gripes with the palette elected by Wescott to represent the ZX Spectrum colors.
 In my humble opinion, the most faithful one is the one described [here](https://en.wikipedia.org/wiki/ZX_Spectrum_graphic_modes#Colour_palette), and most of my acquaintances of the scene share the same sentiment.
-The RGB values described on the previous link are most likely calculated measuring voltages on the RGB output of the 128k models, since the ULAs of those systems generate RGBI signals that later are encoded to composite by the TEA2000 IC.
+The RGB values described on the previous link are most likely calculated by measuring voltages on the RGB output of the 128k models, since the ULAs of those systems generate RGBI signals that later are encoded to composite by the TEA2000 IC.
 Those are the colors that most emulators use and most people are used to; so with that motivation, I decided to make this fork.
-However, since your mileage may vary, I made the original palette also selectable if you like it more.
+However, since your mileage may vary, I made the original palette also selectable if you favor it.
 
 The ULA of the previous models to the 128k generated the composite signal directly, and generating the colors on composite video is a tricky thing.
 The colors are not generated as RGB, but as [YUV](https://en.wikipedia.org/wiki/YUV), a different color space.
@@ -98,13 +111,13 @@ So, I also decided to add a palette converted from the YUV values described on [
 
 In short, you have three possible color combinations to choose from on the upper menu. I also added the corresponding configuration option and Javascript function to select the palette outside the emulator. All is documented upwards.
 
-Also, I have added translations to the texts on the emulator if you need to localize your instance. It applies only on loading, there is not external function or internal menu to change the language on the fly.
+Also, I have added translations to the texts on the emulator if you need to localize your instance.
+I only have translations for English and Spanish so if you can provide translations for more languages, feel free to put a pull request.
+You can find the localization files at `/runtime/i18n`.
 
-Finally, I don't like the bilineal filtering (blurry image) the canvas seems to be applying when the screen is scaled, so I decided to turn it off for non-fullscreen mode.
-
-Be warned that this is just a fun little weekend project, so and I will not develop it further more.
+Be warned that this is just a fun little weekend project, so I will not develop it further more.
 I will try to keep it in line with Wescott's main project, but I don't make any promises on that regard.
-What is stated on the Contributions section still apply here.
+What Wescott stated on the Contributions section still apply here.
 
 Hope this could be of some use for anyone.
 

@@ -302,7 +302,6 @@ export class UIController extends EventEmitter {
         this.appContainer.addEventListener('fullscreenchange', () => {
             if (document.fullscreenElement) {
                 this.isFullscreen = true;
-                this.canvas.style.imageRendering = 'auto';
                 this.canvas.style.width = '100%';
                 this.canvas.style.height = '100%';
                 document.addEventListener('mousemove', fullscreenMouseMove);
@@ -321,7 +320,6 @@ export class UIController extends EventEmitter {
                 this.emit('setZoom', 'fullscreen');
             } else {
                 this.isFullscreen = false;
-                this.canvas.style.imageRendering = 'crisp-edges';
                 if (this.hideUITimeout) clearTimeout(this.hideUITimeout);
                 this.showUI();
 
