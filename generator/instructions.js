@@ -275,6 +275,9 @@ export default {
     'CALL nn': () => `
         let lo = u16(readMem(pc++));
         let hi = u16(readMem(pc));
+        if (spectranet && (hi == 0x3F) && (lo >= 0xF3) && (lo <= 0xF8)) {
+            spectranetPageIn();
+        }
         contendDirtyRead(pc);
         t++;
         pc++;

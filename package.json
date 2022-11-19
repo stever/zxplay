@@ -5,11 +5,12 @@
   "main": "jsspeccy.js",
   "type": "module",
   "scripts": {
+    "start": "NODE_OPTIONS=--openssl-legacy-provider webpack serve --open",
     "test": "npm run build && node --experimental-wasm-modules test/test.js test/tests.in test/tests.expected",
     "build:core": "node generator/gencore.js generator/core.ts.in build/core.ts",
     "build:wasm:debug": "asc build/core.ts --target debug",
     "build:wasm:release": "asc build/core.ts --target release",
-    "build:js": "mkdir -p dist/jsspeccy && webpack",
+    "build:js": "mkdir -p dist/jsspeccy && NODE_OPTIONS=--openssl-legacy-provider webpack",
     "build:static": "mkdir -p dist/jsspeccy && cp static/index.html dist/ && cp static/favicon.ico dist/ && cp README.md dist/ && cp COPYING dist/ && cp CHANGELOG.md dist/ && cp -r static/roms dist/jsspeccy && cp -r static/tapeloaders dist/jsspeccy",
     "build": "npm run build:core && npm run build:wasm:debug && npm run build:js && npm run build:static",
     "build:release": "npm run build:core && npm run build:wasm:release && npm run build:js && npm run build:static",
@@ -38,7 +39,10 @@
         "runtime/icons/*.svg",
         "build/*.js"
       ],
-      "extensions": ["js", "svg"]
+      "extensions": [
+        "js",
+        "svg"
+      ]
     },
     "build:static": {
       "patterns": [
@@ -58,7 +62,8 @@
     "npm-watch": "^0.10.0",
     "svg-inline-loader": "^0.8.2",
     "webpack": "^5.44.0",
-    "webpack-cli": "^4.7.2"
+    "webpack-cli": "^4.7.2",
+    "webpack-dev-server": "^4.11.1"
   },
   "dependencies": {
     "file-dialog": "^0.0.8",

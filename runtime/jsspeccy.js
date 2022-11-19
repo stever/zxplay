@@ -86,6 +86,7 @@ class Emulator extends EventEmitter {
                     if (e.data.mediaType == 'tape' && this.autoLoadTapes) {
                         const TAPE_LOADERS_BY_MACHINE = {
                             '48': {'default': 'tapeloaders/tape_48.szx', 'usr0': 'tapeloaders/tape_48.szx'},
+                            '49': {'default': 'tapeloaders/tape_48.szx', 'usr0': 'tapeloaders/tape_48.szx'},
                             '128': {'default': 'tapeloaders/tape_128.szx', 'usr0': 'tapeloaders/tape_128_usr0.szx'},
                             '5': {'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx'},
                         };
@@ -142,22 +143,33 @@ class Emulator extends EventEmitter {
         }
     }
 
-    async loadRom(url, page) {
+    async loadRom(url, page, offset = 0) {
         const response = await fetch(new URL(url, scriptUrl));
         const data = new Uint8Array(await response.arrayBuffer());
         this.worker.postMessage({
             message: 'loadMemory',
             data,
             page: page,
+            offset: offset
         });
     }
 
     async loadRoms() {
-        await this.loadRom('roms/128-0.rom', 8);
-        await this.loadRom('roms/128-1.rom', 9);
-        await this.loadRom('roms/48.rom', 10);
-        await this.loadRom('roms/pentagon-0.rom', 12);
-        await this.loadRom('roms/trdos.rom', 13);
+        await this.loadRom('roms/128-0.rom', 32);
+        await this.loadRom('roms/128-1.rom', 36);
+        await this.loadRom('roms/48.rom', 40);
+        await this.loadRom('roms/pentagon-0.rom', 48);
+        await this.loadRom('roms/trdos.rom', 52);
+        await this.loadRom('roms/spectranet/page0.bin', 88);
+        await this.loadRom('roms/spectranet/page1.bin', 89);
+        await this.loadRom('roms/spectranet/page2.bin', 90);
+        await this.loadRom('roms/spectranet/page3.bin', 91);
+        await this.loadRom('roms/spectranet/jumptable.bin', 91, 0x0F00);
+        await this.loadRom('roms/spectranet/basext.module', 92);
+        await this.loadRom('roms/spectranet/streams.module', 93);
+        await this.loadRom('roms/spectranet/msgrom.module', 94);
+        await this.loadRom('roms/spectranet/config.module', 95);
+        await this.loadRom('roms/spectranet/snapman.module', 96);
     }
 
 
@@ -199,7 +211,7 @@ class Emulator extends EventEmitter {
     };
 
     setMachine(type) {
-        if (type != 128 && type != 5) type = 48;
+        if (type != 128 && type != 129 && type != 5 && type != 49) type = 48;
         this.worker.postMessage({
             message: 'setMachineType',
             type,
@@ -428,8 +440,14 @@ window.JSSpeccy = (container, opts) => {
     const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
         emu.setMachine(48);
     });
+    const machine48WSpectanetItem = machineMenu.addItem('48K + Spectranet', () => {
+        emu.setMachine(49);
+    });
     const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
         emu.setMachine(128);
+    });
+    const machine128WSpectranetItem = machineMenu.addItem('128K + Spectranet', () => {
+        emu.setMachine(129);
     });
     const machinePentagonItem = machineMenu.addItem('Pentagon 128', () => {
         emu.setMachine(5);
@@ -468,15 +486,33 @@ window.JSSpeccy = (container, opts) => {
     emu.on('setMachine', (type) => {
         if (type == 48) {
             machine48Item.setBullet();
+            machine48WSpectanetItem.unsetBullet();
             machine128Item.unsetBullet();
+            machine128WSpectranetItem.unsetBullet();
+            machinePentagonItem.unsetBullet();
+        } else if (type == 49) {
+            machine48Item.unsetBullet();
+            machine48WSpectanetItem.setBullet();
+            machine128Item.unsetBullet();
+            machine128WSpectranetItem.unsetBullet();
             machinePentagonItem.unsetBullet();
         } else if (type == 128) {
             machine48Item.unsetBullet();
+            machine48WSpectanetItem.unsetBullet();
             machine128Item.setBullet();
+            machine128WSpectranetItem.unsetBullet();
+            machinePentagonItem.unsetBullet();
+        } else if (type == 129) {
+            machine48Item.unsetBullet();
+            machine48WSpectanetItem.unsetBullet();
+            machine128Item.unsetBullet();
+            machine128WSpectranetItem.setBullet();
             machinePentagonItem.unsetBullet();
         } else { // pentagon
             machine48Item.unsetBullet();
+            machine48WSpectanetItem.unsetBullet();
             machine128Item.unsetBullet();
+            machine128WSpectranetItem.unsetBullet();
             machinePentagonItem.setBullet();
         }
     });

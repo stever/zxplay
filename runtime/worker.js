@@ -13,8 +13,28 @@ let tape = null;
 let tapeIsPlaying = false;
 
 const loadCore = (baseUrl) => {
+    function decimalToHex(d, padding) {
+        var hex = Number(d).toString(16);
+        padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
+
+        while (hex.length < padding) {
+            hex = "0" + hex;
+        }
+
+        return hex;
+    }
+
+    const importObject = {
+        env: {
+            abort: m => { /* ... */ },
+            onSpectranetPageIn: pc => console.log("Spectranet page in."),
+            onSpectranetPageOut: pc => console.log("Spectranet page out."),
+            onSpectranetSetPageA: pg => console.log("Spectranet page A set to " + pg),
+            onSpectranetSetPageB: pg => console.log("Spectranet page B set to " + pg),
+        }
+    };
     WebAssembly.instantiateStreaming(
-        fetch(new URL('jsspeccy-core.wasm', baseUrl), {})
+        fetch(new URL('jsspeccy-core.wasm', baseUrl), {}), importObject
     ).then(results => {
         core = results.instance.exports;
         memory = core.memory;
@@ -27,16 +47,16 @@ const loadCore = (baseUrl) => {
             'message': 'ready',
         });
     });
-}
+};
 
-const loadMemoryPage = (page, data) => {
-    memoryData.set(data, core.MACHINE_MEMORY + page * 0x4000);
+const loadMemoryPage = (page, offset, data) => {
+    memoryData.set(data, core.MACHINE_MEMORY + page * 0x1000 + offset);
 };
 
 const loadSnapshot = (snapshot) => {
     core.setMachineType(snapshot.model);
     for (let page in snapshot.memoryPages) {
-        loadMemoryPage(page, snapshot.memoryPages[page]);
+        loadMemoryPage(page, 0, snapshot.memoryPages[page]);
     }
     ['AF', 'BC', 'DE', 'HL', 'AF_', 'BC_', 'DE_', 'HL_', 'IX', 'IY', 'SP', 'IR'].forEach(
         (r, i) => {
@@ -202,7 +222,7 @@ onmessage = (e) => {
             core.reset();
             break;
         case 'loadMemory':
-            loadMemoryPage(e.data.page, e.data.data);
+            loadMemoryPage(e.data.page, e.data.offset, e.data.data);
             break;
         case 'loadSnapshot':
             loadSnapshot(e.data.snapshot);

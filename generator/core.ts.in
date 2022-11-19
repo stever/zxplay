@@ -7,16 +7,18 @@ export const FRAME_BUFFER:usize = (&frameBuffer);
 // 10 = 48 rom, 11 = scratch area for ROM writes
 // 12 = Pentagon rom 0 (Pentagon ROM 1 is identical to 128 rom 1)
 // 13 = TRDOS rom
-#alloc machineMemory[0x40000]: u8
+// 14..21 = Spectranet RAM
+// 22..29 = Spectranet ROM
+#alloc machineMemory[0x80000]: u8
 export const MACHINE_MEMORY:usize = (&machineMemory);
 
-#alloc memoryPageReadMap[4]: u8
-#alloc memoryPageWriteMap[4]: u8
+#alloc memoryPageReadMap[16]: u8
+#alloc memoryPageWriteMap[16]: u8
 export const MEMORY_PAGE_READ_MAP:usize = (&memoryPageReadMap);
 export const MEMORY_PAGE_WRITE_MAP:usize = (&memoryPageWriteMap);
 
-#alloc pageIsContended[12]: u8
-pageIsContended = [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0];
+#alloc pageIsContended[48]: u8
+pageIsContended = [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 #regpair AF A F
 export const REGISTERS:usize = (&AF);
@@ -89,8 +91,10 @@ let microslicesSinceLastSample:u32 = 0;
 let audioBufferPointer:u32 = 0;
 
 // which pages in memory bank correspond to roms 0 and 1 in paging
-let rom0Page:u8 = 8;
-let rom1Page:u8 = 9;
+let rom0Page:u8 = 32;
+let rom1Page:u8 = 36;
+
+let debugEnabled:u8 = 0;
 
 let betadiskEnabled:bool = false;
 let betadiskROMActive:bool = false;
@@ -205,6 +209,10 @@ function clearContentionTable(frameCycleCount:u32):void {
 let frameCycleCount:u32 = 69888;
 let screenPageIndex:u32 = 5;
 let pagingLocked:bool = 0;
+let spectranet:bool = 0;
+let spectranetPagedIn:bool = 0;
+let spectranetPageA:u8 = 0;
+let spectranetPageB:u8 = 0;
 let t:u32 = 0;
 let pc:u16 = 0;
 let iff1:bool = 0;
@@ -234,7 +242,7 @@ let logPtr = 0;
 let machineType:u32 = 48;
 export function setMachineType(type:u32):void {
     machineType = type;
-    if (type == 48 || type == 1212) {
+    if (type == 48 || type == 49 || type == 1212) {
         frameCycleCount = 69888;
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(14335, 224, 0xfc);
@@ -245,8 +253,8 @@ export function setMachineType(type:u32):void {
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(17988, 224, 0xff);
         clearContentionTable(frameCycleCount);
-        rom0Page = 12;
-        rom1Page = 9;
+        rom0Page = 48;
+        rom1Page = 36;
         betadiskEnabled = true;
         betadiskROMActive = false;
     } else {  // 128
@@ -254,31 +262,116 @@ export function setMachineType(type:u32):void {
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(14361, 228, 0xfc);
         buildContentionTable(14361, 228, frameCycleCount);
-        rom0Page = 8;
-        rom1Page = 9;
+        rom0Page = 32;
+        rom1Page = 36;
         betadiskEnabled = false;
     }
     reset();
 }
+
+function convertSpectranetPageRead(page:u8): u8 {
+    if (page >= 0xC0) { // ram
+        return 56 + (page - 0xC0);
+    } else if (page <= 0x1F) { // rom
+        return 88 + page;
+    } else {
+        return 44;
+    }
+}
+
+function convertSpectranetPageWrite(page:u8): u8 {
+    if (page >= 0xC0) { // ram
+        return 56 + (page - 0xC0);
+    } else {
+        return 44;
+    }
+}
+
+function spectranetRefreshPages(): void {
+    if (!spectranetPagedIn) {
+        return;
+    }
+
+    memoryPageReadMap[1] = convertSpectranetPageRead(spectranetPageA);
+    memoryPageReadMap[2] = convertSpectranetPageRead(spectranetPageB);
+
+    memoryPageWriteMap[1] = convertSpectranetPageWrite(spectranetPageA);
+    memoryPageWriteMap[2] = convertSpectranetPageWrite(spectranetPageB);
+}
+
+@external("env", "onSpectranetPageIn")
+declare function onSpectranetPageIn(): void;
+
+@external("env", "onSpectranetPageOut")
+declare function onSpectranetPageOut(): void;
+
+@external("env", "onSpectranetSetPageA")
+declare function onSpectranetSetPageA(pg: u8): void;
+
+@external("env", "onSpectranetSetPageB")
+declare function onSpectranetSetPageB(pg: u8): void;
+
+
+function spectranetPageIn(): void {
+    // Memory pages for Spectranet
+    // 56..87 = Spectranet RAM
+    // 88..119 = Spectranet ROM
+
+    memoryPageReadMap[0] = 88;
+    memoryPageReadMap[3] = 87;
+
+    memoryPageWriteMap[0] = 44;
+    memoryPageWriteMap[3] = 87;
+
+    spectranetPagedIn = 1;
+    spectranetRefreshPages();
+    onSpectranetPageIn();
+}
+
+function spectranetPageOut(): void {
+    memoryPageReadMap[0] = 40;
+    memoryPageReadMap[1] = 41;
+    memoryPageReadMap[2] = 42;
+    memoryPageReadMap[3] = 43;
+
+    memoryPageWriteMap[0] = 44;
+    memoryPageWriteMap[1] = 45;
+    memoryPageWriteMap[2] = 46;
+    memoryPageWriteMap[3] = 47;
+
+    spectranetPagedIn = 0;
+    onSpectranetPageOut();
+}
+
 export function reset():void {
-    if (machineType == 48) {
-        memoryPageReadMap = [10, 5, 2, 0];
-        memoryPageWriteMap = [11, 5, 2, 0];
+    if (machineType == 48 || machineType == 49) {
+        memoryPageReadMap = [40, 41, 42, 43, 20, 21, 22, 23, 8, 9, 10, 11, 0, 1, 2, 3];
+        memoryPageWriteMap = [44, 45, 46, 47, 20, 21, 22, 23, 8, 9, 10, 11, 0, 1, 2, 3];
         pagingLocked = 1;
+
+        if (machineType == 49) {
+            spectranet = 1;
+            spectranetPageIn();
+        }
     } else if (machineType == 1212) {
         // 1212 = test machine type with writeable ROM
-        memoryPageReadMap = [10, 5, 2, 0];
-        memoryPageWriteMap = [10, 5, 2, 0];
+        memoryPageReadMap = [40, 41, 42, 43, 20, 21, 22, 23, 8, 9, 10, 11, 0, 1, 2, 3];
+        memoryPageWriteMap = [40, 41, 42, 43, 20, 21, 22, 23, 8, 9, 10, 11, 0, 1, 2, 3];
         pagingLocked = 1;
     } else if (machineType == 5) {
         // Pentagon
-        memoryPageReadMap = [12, 5, 2, 0];
-        memoryPageWriteMap = [11, 5, 2, 0];
+        memoryPageReadMap = [48, 49, 50, 51, 20, 21, 22, 23, 8, 9, 10, 11, 0, 1, 2, 3];
+        memoryPageWriteMap = [44, 45, 46, 47, 20, 21, 22, 23, 8, 9, 10, 11, 0, 1, 2, 3];
         pagingLocked = 0;
     } else {  // 128
-        memoryPageReadMap = [8, 5, 2, 0];
-        memoryPageWriteMap = [11, 5, 2, 0];
+        memoryPageReadMap = [32, 33, 34, 35, 20, 21, 22, 23, 8, 9, 10, 11, 0, 1, 2, 3];
+        memoryPageWriteMap = [44, 45, 46, 47, 20, 21, 22, 23, 8, 9, 10, 11, 0, 1, 2, 3];
         pagingLocked = 0;
+
+        if (machineType == 129) {
+            spectranet = 1;
+            spectranetPageIn();
+        }
     }
     for (let i:u8 = 0; i < 14; i++) {
         writeAYRegister(i, 0);
@@ -389,42 +482,44 @@ export function setTapePulseBufferState(writeIndex: u16, tstateCount:u32):void {
 }
 
 function readMem(addr:u16):u8 {
-    const page:u8 = memoryPageReadMap[addr >> 14];
-    const pageOffset:u32 = u32(page) << 14;
+    const page:u8 = memoryPageReadMap[addr >> 12];
+    const pageOffset:u32 = u32(page) << 12;
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
     t += 3;
     if (loggingEnabled) {
-        const val:u8 = machineMemory[pageOffset | (addr & 0x3fff)];
+        const val:u8 = machineMemory[pageOffset | (addr & 0x0fff)];
         log(t, 1, addr, val);
         return val;
     } else {
-        return machineMemory[pageOffset | (addr & 0x3fff)];
+        return machineMemory[pageOffset | (addr & 0x0fff)];
     }
 }
 
 function readMemInternal(addr:u16):u8 {
-    const page:u8 = memoryPageReadMap[addr >> 14];
-    const pageStartPtr:u32 = u32(page) << 14;
+    const page:u8 = memoryPageReadMap[addr >> 12];
+    const pageStartPtr:u32 = u32(page) << 12;
     if (loggingEnabled) {
-        const val:u8 = machineMemory[pageStartPtr | (addr & 0x3fff)];
+        const val:u8 = machineMemory[pageStartPtr | (addr & 0x0fff)];
         log(t, 1, addr, val);
         return val;
     } else {
-        return machineMemory[pageStartPtr | (addr & 0x3fff)];
+        return machineMemory[pageStartPtr | (addr & 0x0fff)];
     }
 }
 
 function writeMem(addr:u16, val:u8):void {
-    const page:u8 = memoryPageWriteMap[addr >> 14];
-    const pageStartPtr:u32 = u32(page) << 14;
+    const page:u8 = memoryPageWriteMap[addr >> 12];
+    const page_16k:u8 = page >> 2;
+    const pageStartPtr:u32 = u32(page) << 12;
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
-    const pageOffset:u16 = addr & 0x3fff;
-    if (page == screenPageIndex && pageOffset < 0x1b00) {
+    const pageOffset_16k:u16 = addr & 0x3fff;
+    const pageOffset_4k:u16 = addr & 0x0fff;
+    if (page_16k == screenPageIndex && pageOffset_16k < 0x1b00) {
         updateFramebuffer();
     }
-    machineMemory[pageStartPtr | pageOffset] = val;
+    machineMemory[pageStartPtr | pageOffset_4k] = val;
     t += 3;
     if (loggingEnabled) {
         log(t, 2, addr, val);
@@ -432,33 +527,33 @@ function writeMem(addr:u16, val:u8):void {
 }
 
 function contendRead(addr:u16):void {
-    const page:u8 = memoryPageReadMap[addr >> 14];
+    const page:u8 = memoryPageReadMap[addr >> 12];
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 function contendDirtyRead(addr:u16):void {
-    const page:u8 = memoryPageReadMap[addr >> 14];
+    const page:u8 = memoryPageReadMap[addr >> 12];
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 function contendDirtyWrite(addr:u16):void {
-    const page:u8 = memoryPageWriteMap[addr >> 14];
+    const page:u8 = memoryPageWriteMap[addr >> 12];
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 
 export function peek(addr:u16):u8 {
-    const pageOffset:u32 = u32(memoryPageReadMap[addr >> 14]) << 14;
-    return machineMemory[pageOffset | (addr & 0x3fff)];
+    const pageOffset:u32 = u32(memoryPageReadMap[addr >> 12]) << 12;
+    return machineMemory[pageOffset | (addr & 0x0fff)];
 }
 export function poke(addr:u16, val:u8):void {
-    const pageOffset:u32 = u32(memoryPageWriteMap[addr >> 14]) << 14;
-    machineMemory[pageOffset | (addr & 0x3fff)] = val;
+    const pageOffset:u32 = u32(memoryPageWriteMap[addr >> 12]) << 12;
+    machineMemory[pageOffset | (addr & 0x0fff)] = val;
 }
 
 export function readPort(addr:u16):u8 {
     /* apply pre-read contention */
-    const page:u8 = memoryPageReadMap[addr >> 14];
+    const page:u8 = memoryPageReadMap[addr >> 12];
     const addressIsContended:u8 = pageIsContended[page];
     if (addressIsContended) {
         if (loggingEnabled) log(t, 6, addr, 0);
@@ -485,10 +580,14 @@ export function readPort(addr:u16):u8 {
         } else if (!(addr & 0x00e0)) {
             /* kempston joystick */
             result = 0;
-        } else if (machineType == 48 || machineType == 128) {
-            /* floating bus */
-            updateFramebuffer();
-            result = floatingBusValue;
+        } else if (spectranet && ((addr & 0x033B) == 0x033B)) {
+            result = 0;
+        } else {
+            if (machineType == 48 || machineType == 49 || machineType == 128 || machineType == 129) {
+                /* floating bus */
+                updateFramebuffer();
+                result = floatingBusValue;
+            }
         }
     }
     if (loggingEnabled) log(t, 4, addr, result);
@@ -519,7 +618,7 @@ export function readPort(addr:u16):u8 {
 
 export function writePort(addr:u16, val:u8):void {
     /* apply pre-write contention */
-    const page:u8 = memoryPageWriteMap[addr >> 14];
+    const page:u8 = memoryPageWriteMap[addr >> 12];
     const addressIsContended:u8 = pageIsContended[page];
     if (addressIsContended) {
         if (loggingEnabled) log(t, 6, addr, 0);
@@ -540,10 +639,13 @@ export function writePort(addr:u16, val:u8):void {
 
             updateFramebuffer();  // so that screen switching happens at the right position
 
-            memoryPageReadMap[3] = val & 0x07;
-            memoryPageWriteMap[3] = val & 0x07;
             screenPageIndex = (val & 0x08) ? 7 : 5;
-            memoryPageReadMap[0] = (val & 0x10) ? rom1Page : rom0Page;
+            for (var i = 0; i < 4; i++)
+            {
+                memoryPageReadMap[24 + i] = ((val & 0x07) << 2) + i;
+                memoryPageWriteMap[24 + i] = ((val & 0x07) << 2) + i;
+                memoryPageReadMap[i] = ((val & 0x10) ? rom1Page : rom0Page) + i;
+            }
             pagingLocked = bool(val & 0x20);
         }
     } else if ((addr & 0xc002) == 0xc000) {
@@ -551,6 +653,22 @@ export function writePort(addr:u16, val:u8):void {
     } else if ((addr & 0xc002) == 0x8000) {
         updateAudioBuffer(t);
         writeAYRegister(selectedAYRegister, val);
+    } else if (spectranet) {
+        if ((addr & 0x033B) == 0x033B) {
+            if (val & 0x01) {
+                spectranetPageIn();
+            } else {
+                spectranetPageOut();
+            }
+        } else if ((addr & 0x013B) == 0x013B) {
+            spectranetPageB = val;
+            spectranetRefreshPages();
+            onSpectranetSetPageB(val);
+        } else if ((addr & 0x3B) == 0x3B) {
+            spectranetPageA = val;
+            spectranetRefreshPages();
+            onSpectranetSetPageA(val);
+        }
     }
 
     /* apply post-write contention */
@@ -861,7 +979,7 @@ export function runUntil(maxT:u32):i16 {
 
         if (
             (pc == 0x056b || pc == 0x0111)
-            && (memoryPageReadMap[0] == 9 || memoryPageReadMap[0] == 10)
+            && (memoryPageReadMap[0] == 36 || memoryPageReadMap[0] == 40)
             && tapeTrapsEnabled && willTrap
         ) {
             // tape loading trap
@@ -872,11 +990,26 @@ export function runUntil(maxT:u32):i16 {
         if (betadiskEnabled) {
             if ((pc & 0xff00) == 0x3d00 && !betadiskROMActive && memoryPageReadMap[0] == rom1Page) {
                 betadiskROMActive = true;
-                memoryPageReadMap[0] = 13;
+                memoryPageReadMap[0] = 52;
+                memoryPageReadMap[1] = 53;
+                memoryPageReadMap[2] = 54;
+                memoryPageReadMap[3] = 55;
             } else if (pc >= 0x4000 && betadiskROMActive) {
                 betadiskROMActive = false;
                 memoryPageReadMap[0] = rom1Page;
+                memoryPageReadMap[1] = rom1Page + 1;
+                memoryPageReadMap[2] = rom1Page + 2;
+                memoryPageReadMap[3] = rom1Page + 3;
             }
+        }
+
+        if (spectranetPagedIn && (pc == 0x007c))
+        {
+            spectranetPageOut();
+        }
+        if (!spectranetPagedIn && ((pc == 0x0008)) || ((pc & 0xfff8) == 0x3ff8))
+        {
+            spectranetPageIn();
         }
 
         interruptible = true; // unless overridden by opcode

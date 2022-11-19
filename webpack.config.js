@@ -3,6 +3,7 @@ export default [
         output: {
             filename: 'jsspeccy/jsspeccy.js',
         },
+        devtool: 'source-map',
         name: 'jsspeccy',
         entry: './runtime/jsspeccy.js',
         mode: 'production',
