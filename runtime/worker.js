@@ -2,6 +2,8 @@ import { FRAME_BUFFER_SIZE } from './constants.js';
 import { TAPFile, TZXFile } from './tape.js';
 
 let core = null;
+let spectranet = null;
+let spectranet_memory = null;
 let memory = null;
 let memoryData = null;
 let workerFrameData = null;
@@ -13,40 +15,48 @@ let tape = null;
 let tapeIsPlaying = false;
 
 const loadCore = (baseUrl) => {
-    function decimalToHex(d, padding) {
-        var hex = Number(d).toString(16);
-        padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
-
-        while (hex.length < padding) {
-            hex = "0" + hex;
-        }
-
-        return hex;
-    }
 
     const importObject = {
         env: {
             abort: m => { /* ... */ },
-            onSpectranetPageIn: pc => console.log("Spectranet page in."),
-            onSpectranetPageOut: pc => console.log("Spectranet page out."),
-            onSpectranetSetPageA: pg => console.log("Spectranet page A set to " + pg),
-            onSpectranetSetPageB: pg => console.log("Spectranet page B set to " + pg),
+            debug_print: (s, len) => {
+                console.log(String.fromCharCode.apply(String, new Uint8Array(spectranet_memory.buffer, s, len)));
+            }
         }
     };
-    WebAssembly.instantiateStreaming(
-        fetch(new URL('jsspeccy-core.wasm', baseUrl), {}), importObject
-    ).then(results => {
-        core = results.instance.exports;
-        memory = core.memory;
-        memoryData = new Uint8Array(memory.buffer);
-        workerFrameData = memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
-        registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
-        tapePulses = new Uint16Array(core.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
 
-        postMessage({
-            'message': 'ready',
+    WebAssembly.instantiateStreaming(
+        fetch(new URL('jsspeccy-spectranet.wasm', baseUrl), {}), importObject
+    ).then(results => {
+        spectranet = results.instance.exports;
+        spectranet_memory = spectranet.memory;
+        ;
+
+        const spectranetImportObject = {
+            env: {
+                abort: m => { /* ... */ },
+                spectranetReset: () => spectranet.nic_w5100_reset(),
+                spectranetRead: (reg) => spectranet.nic_w5100_read(reg),
+                spectranetWrite: (reg, val) => spectranet.nic_w5100_write(reg, val),
+            }
+        };
+
+        WebAssembly.instantiateStreaming(
+            fetch(new URL('jsspeccy-core.wasm', baseUrl), {}), spectranetImportObject
+        ).then(results => {
+            core = results.instance.exports;
+            memory = core.memory;
+            memoryData = new Uint8Array(memory.buffer);
+            workerFrameData = memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
+            registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
+            tapePulses = new Uint16Array(core.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
+
+            postMessage({
+                'message': 'ready',
+            });
         });
     });
+
 };
 
 const loadMemoryPage = (page, offset, data) => {

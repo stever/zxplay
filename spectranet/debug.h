@@ -1,0 +1,16 @@
+#ifndef DEBUG_H
+#define DEBUG_H
+
+/* Debug routines */
+
+/* Define this to spew debugging info to stdout */
+#define W5100_DEBUG 1
+
+#if W5100_DEBUG
+#include <stdio.h>
+void nic_w5100_debug( const char *format, ... );
+#else
+#define nic_w5100_debug(...)
+#endif
+
+#endif

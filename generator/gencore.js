@@ -20,10 +20,10 @@ const loadOpcodeTable = (filename, table, altTable) => {
             table[code] = instruction;
             if (altTable) {
                 const altInstruction = (
-                    instruction.replaceAll(/\bIX\b/g, 'IY')
-                    .replaceAll(/\bIXH\b/g, 'IYH')
-                    .replaceAll(/\bIXL\b/g, 'IYL')
-                    .replaceAll(/prefix ddcb/g, 'prefix fdcb')
+                    instruction.replace(/\bIX\b/g, 'IY')
+                    .replace(/\bIXH\b/g, 'IYH')
+                    .replace(/\bIXL\b/g, 'IYL')
+                    .replace(/prefix ddcb/g, 'prefix fdcb')
                 );
                 altTable[code] = altInstruction;
             }
@@ -124,6 +124,7 @@ const TYPE_SIZES = {
     'u16': 2,
     'u32': 4,
     'f32': 4,
+    'i32': 4,
 }
 let mem = 0;
 const vars = {};
@@ -145,7 +146,7 @@ const defineConstant = (varName, val) => {
 
 const parseExpression = (expr) => {
     /* array accesses: foo[x] */
-    expr = expr.replaceAll(
+    expr = expr.replace(
         /(\w+)\s*\[([^\]]+)\]/g,
         (str, varName, index) => {
             if (varName in vars) {
@@ -157,13 +158,13 @@ const parseExpression = (expr) => {
     );
 
     /* address getting: (&foo) - note that parentheses are required */
-    expr = expr.replaceAll(
+    expr = expr.replace(
         /\(\&(\w+)\)/g,
         (str, varName) => varName in vars ? vars[varName].address : varName
     );
 
     /* plain variable accesses: foo */
-    expr = expr.replaceAll(
+    expr = expr.replace(
         /\w+/g,
         varName => varName in vars ? vars[varName].getter() : varName
     );
