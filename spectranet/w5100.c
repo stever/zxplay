@@ -101,23 +101,11 @@ void nic_w5100_io()
        offending socket will not be added to the sets again as it's now been
        closed */
 
-    nic_w5100_debug( "w5100: io thread select\n" );
-
     active = select( max_fd + 1, &readfds, &writefds, NULL, NULL );
-
-    nic_w5100_debug( "w5100: io thread wake; %d active\n", active );
 
     if( active != -1 ) {
       for( i = 0; i < 4; i++ )
         nic_w5100_socket_process_io( &self.socket[i], readfds, writefds );
-    }
-    else if( compat_socket_get_error() == 0 ) {
-      /* Do nothing - just loop again */
-    }
-    else {
-      nic_w5100_debug( "w5100: select returned unexpected errno %d: %s\n",
-                       compat_socket_get_error(),
-                       compat_socket_get_strerror() );
     }
 }
 

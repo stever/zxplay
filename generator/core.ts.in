@@ -240,6 +240,9 @@ let spectranetPageB:u8 = 0;
 let spectranetW5100A:u8 = 0;
 let spectranetW5100B:u8 = 0;
 
+@external("env", "updateSpectranetIO")
+declare function updateSpectranetIO(): void;
+
 @external("env", "spectranetReset")
 declare function spectranetReset(): void;
 
@@ -755,8 +758,6 @@ export function writePort(addr:u16, val:u8):void {
         if ((addr & 0x033B) == 0x033B) {
             if (val & 0x01) {
                 spectranetPageIn();
-            } else {
-                spectranetPageOut();
             }
         } else if ((addr & 0x013B) == 0x013B) {
             spectranetSetPageB(val);
@@ -1006,6 +1007,9 @@ export function resumeFrame():i16 {
 
     updateFramebuffer();
     updateAudioBuffer(t);
+    if (isSpectranetEnabled()) {
+        updateSpectranetIO();
+    }
 
     if (tapePulseWriteIndex > tapePulseReadIndex) {
         // copy excess from tape pulse buffer to start of buffer
@@ -1097,10 +1101,6 @@ export function runUntil(maxT:u32):i16 {
             }
         }
 
-        if (isSpectranetPagedIn() && (pc == 0x007c))
-        {
-            spectranetPageOut();
-        }
         if (!isSpectranetPagedIn() && ((pc == 0x0008)) || ((pc & 0xfff8) == 0x3ff8))
         {
             spectranetPageIn();
@@ -1110,7 +1110,10 @@ export function runUntil(maxT:u32):i16 {
         if (opcodePrefix == 0) {
             contendRead(pc);
             t += 4;
-            let op:u8 = readMemInternal(pc++);
+            let op:u8 = readMemInternal(pc);
+            if (isSpectranetPagedIn() && (pc == 0x007c))
+                spectranetPageOut();
+            pc++;
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
@@ -1125,7 +1128,10 @@ export function runUntil(maxT:u32):i16 {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             contendRead(pc);
             t += 4;
-            let op:u8 = readMemInternal(pc++);
+            let op:u8 = readMemInternal(pc);
+            if (isSpectranetPagedIn() && (pc == 0x007c))
+                spectranetPageOut();
+            pc++;
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
@@ -1140,7 +1146,10 @@ export function runUntil(maxT:u32):i16 {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             contendRead(pc);
             t += 4;
-            let op:u8 = readMemInternal(pc++);
+            let op:u8 = readMemInternal(pc);
+            if (isSpectranetPagedIn() && (pc == 0x007c))
+                spectranetPageOut();
+            pc++;
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
@@ -1154,7 +1163,11 @@ export function runUntil(maxT:u32):i16 {
         } else if (opcodePrefix == 0xdc) {  // ddcb
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             const indexOffset:i8 = i8(readMem(pc++));
-            let op:u8 = readMem(pc++);
+            let op:u8 = readMem(pc);
+            if (isSpectranetPagedIn() && (pc == 0x007c))
+                spectranetPageOut();
+            pc++;
+
             switch (op) {
                 #optable ddcb
 
@@ -1165,7 +1178,10 @@ export function runUntil(maxT:u32):i16 {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             contendRead(pc);
             t += 4;
-            let op:u8 = readMemInternal(pc++);
+            let op:u8 = readMemInternal(pc);
+            if (isSpectranetPagedIn() && (pc == 0x007c))
+                spectranetPageOut();
+            pc++;
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
@@ -1180,7 +1196,10 @@ export function runUntil(maxT:u32):i16 {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             contendRead(pc);
             t += 4;
-            let op:u8 = readMemInternal(pc++);
+            let op:u8 = readMemInternal(pc);
+            if (isSpectranetPagedIn() && (pc == 0x007c))
+                spectranetPageOut();
+            pc++;
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
@@ -1194,7 +1213,11 @@ export function runUntil(maxT:u32):i16 {
         } else if (opcodePrefix == 0xfc) {  // fdcb
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             const indexOffset:i8 = i8(readMem(pc++));
-            let op:u8 = readMem(pc++);
+            let op:u8 = readMem(pc);
+            if (isSpectranetPagedIn() && (pc == 0x007c))
+                spectranetPageOut();
+            pc++;
+
             switch (op) {
                 #optable fdcb
 

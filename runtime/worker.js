@@ -38,6 +38,7 @@ const loadCore = (baseUrl) => {
                 spectranetReset: () => spectranet.nic_w5100_reset(),
                 spectranetRead: (reg) => spectranet.nic_w5100_read(reg),
                 spectranetWrite: (reg, val) => spectranet.nic_w5100_write(reg, val),
+                updateSpectranetIO: () => spectranet.nic_w5100_io()
             }
         };
 

@@ -22,8 +22,11 @@ enum socket_type_t
 struct socket_ref_t
 {
     uint8_t used;
+    uint8_t bound;
     enum socket_type_t socket_type;
     struct sockaddr_in bound_address;
+    uint8_t rx_buffer[MAX_RX_BUFFER];
+    uint16_t rx_size;
 };
 
 #endif

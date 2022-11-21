@@ -357,7 +357,7 @@ w5100_write_socket_cr( struct nic_w5100_t *self, nic_w5100_socket_t *socket, uin
 static void
 w5100_write_socket_port( struct nic_w5100_t *self, nic_w5100_socket_t *socket, int which, uint8_t b )
 {
-  nic_w5100_debug( "w5100: writing 0x%02x to S%d_PORT%d\n", b, socket->id, which );
+  nic_w5100_verbose( "w5100: writing 0x%02x to S%d_PORT%d\n", b, socket->id, which );
   socket->port[which] = b;
   if( ++socket->bind_count == 2 ) {
     if( socket->state == W5100_SOCKET_STATE_UDP && !socket->socket_bound ) {
@@ -383,49 +383,49 @@ nic_w5100_socket_read( struct nic_w5100_t *self, uint16_t reg )
   switch( socket_reg ) {
     case W5100_SOCKET_MR:
       b = socket->mode;
-      nic_w5100_debug( "w5100: reading 0x%02x from S%d_MR\n", b, socket->id );
+      nic_w5100_verbose( "w5100: reading 0x%02x from S%d_MR\n", b, socket->id );
       break;
     case W5100_SOCKET_IR:
       b = socket->ir;
-      nic_w5100_debug( "w5100: reading 0x%02x from S%d_IR\n", b, socket->id );
+      nic_w5100_verbose( "w5100: reading 0x%02x from S%d_IR\n", b, socket->id );
       break;
     case W5100_SOCKET_SR:
       b = socket->state;
-      nic_w5100_debug( "w5100: reading 0x%02x from S%d_SR\n", b, socket->id );
+      nic_w5100_verbose( "w5100: reading 0x%02x from S%d_SR\n", b, socket->id );
       break;
     case W5100_SOCKET_PORT0: case W5100_SOCKET_PORT1:
       b = socket->port[socket_reg - W5100_SOCKET_PORT0];
-      nic_w5100_debug( "w5100: reading 0x%02x from S%d_PORT%d\n", b, socket->id, socket_reg - W5100_SOCKET_PORT0 );
+      nic_w5100_verbose( "w5100: reading 0x%02x from S%d_PORT%d\n", b, socket->id, socket_reg - W5100_SOCKET_PORT0 );
       break;
     case W5100_SOCKET_TX_FSR0: case W5100_SOCKET_TX_FSR1:
       reg_offset = socket_reg - W5100_SOCKET_TX_FSR0;
       fsr = 0x0800 - (socket->tx_wr - socket->tx_rr);
       b = ( fsr >> ( 8 * ( 1 - reg_offset ) ) ) & 0xff;
-      nic_w5100_debug( "w5100: reading 0x%02x from S%d_TX_FSR%d\n", b, socket->id, reg_offset );
+      nic_w5100_verbose( "w5100: reading 0x%02x from S%d_TX_FSR%d\n", b, socket->id, reg_offset );
       break;
     case W5100_SOCKET_TX_RR0: case W5100_SOCKET_TX_RR1:
       reg_offset = socket_reg - W5100_SOCKET_TX_RR0;
       b = ( socket->tx_rr >> ( 8 * ( 1 - reg_offset ) ) ) & 0xff;
-      nic_w5100_debug( "w5100: reading 0x%02x from S%d_TX_RR%d\n", b, socket->id, reg_offset );
+      nic_w5100_verbose( "w5100: reading 0x%02x from S%d_TX_RR%d\n", b, socket->id, reg_offset );
       break;
     case W5100_SOCKET_TX_WR0: case W5100_SOCKET_TX_WR1:
       reg_offset = socket_reg - W5100_SOCKET_TX_WR0;
       b = ( socket->tx_wr >> ( 8 * ( 1 - reg_offset ) ) ) & 0xff;
-      nic_w5100_debug( "w5100: reading 0x%02x from S%d_TX_WR%d\n", b, socket->id, reg_offset );
+      nic_w5100_verbose( "w5100: reading 0x%02x from S%d_TX_WR%d\n", b, socket->id, reg_offset );
       break;
     case W5100_SOCKET_RX_RSR0: case W5100_SOCKET_RX_RSR1:
       reg_offset = socket_reg - W5100_SOCKET_RX_RSR0;
       b = ( socket->rx_rsr >> ( 8 * ( 1 - reg_offset ) ) ) & 0xff;
-      nic_w5100_debug( "w5100: reading 0x%02x from S%d_RX_RSR%d\n", b, socket->id, reg_offset );
+      nic_w5100_verbose( "w5100: reading 0x%02x from S%d_RX_RSR%d\n", b, socket->id, reg_offset );
       break;
     case W5100_SOCKET_RX_RD0: case W5100_SOCKET_RX_RD1:
       reg_offset = socket_reg - W5100_SOCKET_RX_RD0;
       b = ( socket->rx_rd >> ( 8 * ( 1 - reg_offset ) ) ) & 0xff;
-      nic_w5100_debug( "w5100: reading 0x%02x from S%d_RX_RD%d\n", b, socket->id, reg_offset );
+      nic_w5100_verbose( "w5100: reading 0x%02x from S%d_RX_RD%d\n", b, socket->id, reg_offset );
       break;
     default:
       b = 0xff;
-      nic_w5100_debug( "w5100: reading 0x%02x from unsupported register 0x%03x\n", b, reg );
+      nic_w5100_verbose( "w5100: reading 0x%02x from unsupported register 0x%03x\n", b, reg );
       break;
   }
 
@@ -491,7 +491,7 @@ nic_w5100_socket_read_rx_buffer( struct nic_w5100_t *self, uint16_t reg )
   nic_w5100_socket_t *socket = &self->socket[(reg - 0x6000) / 0x0800];
   int offset = reg & 0x7ff;
   uint8_t b = socket->rx_buffer[offset];
-  nic_w5100_debug( "w5100: reading 0x%02x from socket %d rx buffer offset 0x%03x\n", b, socket->id, offset );
+  nic_w5100_verbose( "w5100: reading 0x%02x from socket %d rx buffer offset 0x%03x\n", b, socket->id, offset );
   return b;
 }
 
@@ -500,7 +500,7 @@ nic_w5100_socket_write_tx_buffer( struct nic_w5100_t *self, uint16_t reg, uint8_
 {
   nic_w5100_socket_t *socket = &self->socket[(reg - 0x4000) / 0x0800];
   int offset = reg & 0x7ff;
-  nic_w5100_debug( "w5100: writing 0x%02x to socket %d tx buffer offset 0x%03x\n", b, socket->id, offset );
+  nic_w5100_verbose( "w5100: writing 0x%02x to socket %d tx buffer offset 0x%03x\n", b, socket->id, offset );
   socket->tx_buffer[offset] = b;
 }
 

@@ -7,7 +7,7 @@
   "scripts": {
     "start": "webpack serve --open",
     "test": "npm run build && node --experimental-wasm-modules test/test.js test/tests.in test/tests.expected",
-    "build:spectranet": "emcc -s STANDALONE_WASM -s WASM=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -g -gsource-map --source-map-base=\"http://localhost:8000/jsspeccy/\" -sEXPORTED_FUNCTIONS=_nic_w5100_reset,_nic_w5100_read,_nic_w5100_write -s spectranet/*.c --no-entry -o dist/jsspeccy/jsspeccy-spectranet.wasm",
+    "build:spectranet": "emcc -s STANDALONE_WASM -s WASM=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -g -gsource-map --source-map-base=\"http://localhost:8000/jsspeccy/\" -sEXPORTED_FUNCTIONS=_nic_w5100_reset,_nic_w5100_read,_nic_w5100_write,_nic_w5100_io -s spectranet/*.c --no-entry -o dist/jsspeccy/jsspeccy-spectranet.wasm",
     "build:core": "node generator/gencore.js generator/core.ts.in build/core.ts",
     "build:wasm:debug": "asc build/core.ts --target debug",
     "build:wasm:release": "asc build/core.ts --target release",

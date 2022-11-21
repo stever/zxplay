@@ -18,10 +18,11 @@ typedef uint16_t socklen_t;
 
 #define AF_INET (0)
 
-#define ntohs(x) x
-#define ntohl(x) x
+#define ntohs(x) (((x << 8) & 0xFF00) | (uint8_t)(x >> 8))
+#define ntohl(x) (((x << 8) & 0xFF00) | (uint8_t)(x >> 8))
 
 #define FD_SETSIZE (8)
+#define MAX_RX_BUFFER (2048)
 
 typedef struct fd_set {
   uint8_t  fd_count;
@@ -47,7 +48,6 @@ int compat_socket_get_error();
 const char* compat_socket_get_strerror();
 void compat_socket_selfpipe_wake();
 
-void FD_CLR(int fd, fd_set *set);
 int  FD_ISSET(int fd, fd_set *set);
 void FD_SET(int fd, fd_set *set);
 void FD_ZERO(fd_set *set);
@@ -64,5 +64,7 @@ int16_t recv(int sockfd, void *buf, uint16_t len, int flags);
 int16_t recvfrom(int sockfd, void *buf, uint16_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
 int16_t send(int sockfd, const void *buf, uint16_t len, int flags);
 int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
+
+uint16_t compat_rx_data(int sockfd, uint8_t* data, uint16_t sz);
 
 #endif
