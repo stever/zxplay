@@ -211,6 +211,8 @@ let screenPageIndex:u32 = 5;
 let pagingLocked:bool = 0;
 let t:u32 = 0;
 let pc:u16 = 0;
+let pcBeforeInstruction:u16 = 0;
+let triggerNMI:bool = false;
 let iff1:bool = 0;
 let iff2:bool = 0;
 let im:u8 = 0;
@@ -235,10 +237,15 @@ let tapeLevel:u8 = 0x00;
 
 let spectranet:bool = 0;
 let spectranetPagedIn:bool = 0;
+let spectranetPagedInIO:bool = 0;
 let spectranetPageA:u8 = 0;
 let spectranetPageB:u8 = 0;
 let spectranetW5100A:u8 = 0;
 let spectranetW5100B:u8 = 0;
+let spectranetNMIFlipFlop:bool = 0;
+let spectranetTrap:bool = 0;
+let spectranetTrapMSB:bool = 0;
+let spectranetTrapPC:u16 = 0;
 
 @external("env", "updateSpectranetIO")
 declare function updateSpectranetIO(): void;
@@ -274,8 +281,19 @@ export function isSpectranetPagedIn(): bool {
     return spectranetPagedIn;
 }
 
+export function resetROM(): void {
+    // reset spectranet ROM to FF to emulate FLASH
+    for (let i: u32 = 88 * 0x1000; i < 120 * 0x1000; i++) {
+        machineMemory[i] = 0xFF;
+    }
+}
+
 export function enableSpectranet(): void {
     spectranet = 1;
+    spectranetNMIFlipFlop = false;
+    spectranetTrap = false;
+    spectranetTrapMSB = false;
+    spectranetTrapPC = 0;
     spectranetReset();
 }
 
@@ -336,7 +354,7 @@ export function spectranetRefreshPages(): void {
     }
 }
 
-export function spectranetPageIn(): void {
+export function spectranetPageIn(io: bool): void {
     // Memory pages for Spectranet
     // 56..87 = Spectranet RAM
     // 88..119 = Spectranet ROM
@@ -348,7 +366,21 @@ export function spectranetPageIn(): void {
     memoryPageWriteMap[3] = 87;
 
     spectranetPagedIn = 1;
+    spectranetPagedInIO = io;
     spectranetRefreshPages();
+}
+
+export function spectranetEnableProgrammableTrap(trap: bool): void {
+    spectranetTrap = trap;
+}
+
+export function spectranetSupplyTrapPC(val: u8): void {
+    if (spectranetTrapMSB) {
+        spectranetTrapPC = (spectranetTrapPC & 0x00ff) | (u16(val) << 8);
+    } else {
+        spectranetTrapPC = (spectranetTrapPC & 0xff00) | val;
+    }
+    spectranetTrapMSB = !spectranetTrapMSB;
 }
 
 export function spectranetPageOut(): void {
@@ -365,7 +397,8 @@ export function spectranetPageOut(): void {
     spectranetW5100A = 0;
     spectranetW5100B = 0;
 
-    spectranetPagedIn = 0;
+    spectranetPagedIn = false;
+    spectranetPagedInIO = false;
 }
 
 export function spectranetSetPageA(val: u8): void {
@@ -378,6 +411,20 @@ export function spectranetSetPageB(val: u8): void {
     spectranetRefreshPages();
 }
 
+export function spectranetNMI(): void {
+    spectranetNMIFlipFlop = true;
+    spectranetPageIn(false);
+}
+
+export function spectranetRetN(): void {
+    spectranetNMIFlipFlop = false;
+}
+
+export function spectranetCheckPCPageOut(): void {
+    if (spectranetPagedIn && (pcBeforeInstruction == 0x007c)) {
+        spectranetPageOut();
+    }
+}
 
 /* ===================================================================================================================*/
 /* ===================================================================================================================*/
@@ -388,6 +435,31 @@ let willTrap:bool = true;
 
 let loggingEnabled:bool = false;
 let logPtr = 0;
+
+export function nonMaskableInterrupt(): void {
+    if (spectranet && spectranetNMIFlipFlop) {
+        return;
+    }
+
+    let sp = SP;
+    sp--;
+    writeMem(sp, u8(pc >> 8));
+    sp--;
+    writeMem(sp, u8(pc & 0xff));
+    SP = sp;
+
+    t += 5;
+
+    let r = R;
+    r++;
+    R = r;
+
+    if (spectranet) {
+        spectranetNMI();
+    }
+
+    pc = 0x66;
+}
 
 let machineType:u32 = 48;
 export function setMachineType(type:u32):void {
@@ -429,7 +501,7 @@ export function reset():void {
 
         if (machineType == 49) {
             enableSpectranet();
-            spectranetPageIn();
+            spectranetPageIn(false);
         }
     } else if (machineType == 1212) {
         // 1212 = test machine type with writeable ROM
@@ -448,7 +520,7 @@ export function reset():void {
 
         if (machineType == 129) {
             enableSpectranet();
-            spectranetPageIn();
+            spectranetPageIn(false);
         }
     }
     for (let i:u8 = 0; i < 14; i++) {
@@ -681,7 +753,7 @@ export function readPort(addr:u16):u8 {
         } else if (!(addr & 0x00e0)) {
             /* kempston joystick */
             result = 0;
-        } else if (isSpectranetEnabled() && ((addr & 0x033B) == 0x033B)) {
+        } else if (spectranet && ((addr & 0x033B) == 0x033B)) {
             result = 0;
         } else {
             if (machineType == 48 || machineType == 49 || machineType == 128 || machineType == 129) {
@@ -754,11 +826,16 @@ export function writePort(addr:u16, val:u8):void {
     } else if ((addr & 0xc002) == 0x8000) {
         updateAudioBuffer(t);
         writeAYRegister(selectedAYRegister, val);
-    } else if (isSpectranetEnabled()) {
+    } else if (spectranet) {
         if ((addr & 0x033B) == 0x033B) {
             if (val & 0x01) {
-                spectranetPageIn();
+                spectranetPageIn(true);
+            } else if (spectranetPagedInIO) {
+                spectranetPageOut();
             }
+            spectranetEnableProgrammableTrap(bool(val & 0x08));
+        } else if ((addr & 0x023B) == 0x023B) {
+            spectranetSupplyTrapPC(val);
         } else if ((addr & 0x013B) == 0x013B) {
             spectranetSetPageB(val);
         } else if ((addr & 0x3B) == 0x3B) {
@@ -1007,7 +1084,7 @@ export function resumeFrame():i16 {
 
     updateFramebuffer();
     updateAudioBuffer(t);
-    if (isSpectranetEnabled()) {
+    if (spectranet) {
         updateSpectranetIO();
     }
 
@@ -1101,19 +1178,23 @@ export function runUntil(maxT:u32):i16 {
             }
         }
 
-        if (!isSpectranetPagedIn() && ((pc == 0x0008)) || ((pc & 0xfff8) == 0x3ff8))
-        {
-            spectranetPageIn();
+        if (spectranet && ((pc == 0x0008) || ((pc & 0xfff8) == 0x3ff8))) {
+            spectranetPageIn(false);
         }
+
+        /* trigger NMI on a programmable trap AFTER the instruction has been executed */
+        if (spectranetTrap && (spectranetTrapPC == pc)) {
+            triggerNMI = true;
+        }
+
+        pcBeforeInstruction = pc;
 
         interruptible = true; // unless overridden by opcode
         if (opcodePrefix == 0) {
             contendRead(pc);
             t += 4;
-            let op:u8 = readMemInternal(pc);
-            if (isSpectranetPagedIn() && (pc == 0x007c))
-                spectranetPageOut();
-            pc++;
+            let op:u8 = readMemInternal(pc++);
+            spectranetCheckPCPageOut();
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
@@ -1128,10 +1209,8 @@ export function runUntil(maxT:u32):i16 {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             contendRead(pc);
             t += 4;
-            let op:u8 = readMemInternal(pc);
-            if (isSpectranetPagedIn() && (pc == 0x007c))
-                spectranetPageOut();
-            pc++;
+            let op:u8 = readMemInternal(pc++);
+            spectranetCheckPCPageOut();
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
@@ -1146,10 +1225,8 @@ export function runUntil(maxT:u32):i16 {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             contendRead(pc);
             t += 4;
-            let op:u8 = readMemInternal(pc);
-            if (isSpectranetPagedIn() && (pc == 0x007c))
-                spectranetPageOut();
-            pc++;
+            let op:u8 = readMemInternal(pc++);
+            spectranetCheckPCPageOut();
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
@@ -1163,10 +1240,8 @@ export function runUntil(maxT:u32):i16 {
         } else if (opcodePrefix == 0xdc) {  // ddcb
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             const indexOffset:i8 = i8(readMem(pc++));
-            let op:u8 = readMem(pc);
-            if (isSpectranetPagedIn() && (pc == 0x007c))
-                spectranetPageOut();
-            pc++;
+            let op:u8 = readMem(pc++);
+            spectranetCheckPCPageOut();
 
             switch (op) {
                 #optable ddcb
@@ -1178,10 +1253,8 @@ export function runUntil(maxT:u32):i16 {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             contendRead(pc);
             t += 4;
-            let op:u8 = readMemInternal(pc);
-            if (isSpectranetPagedIn() && (pc == 0x007c))
-                spectranetPageOut();
-            pc++;
+            let op:u8 = readMemInternal(pc++);
+            spectranetCheckPCPageOut();
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
@@ -1196,10 +1269,8 @@ export function runUntil(maxT:u32):i16 {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             contendRead(pc);
             t += 4;
-            let op:u8 = readMemInternal(pc);
-            if (isSpectranetPagedIn() && (pc == 0x007c))
-                spectranetPageOut();
-            pc++;
+            let op:u8 = readMemInternal(pc++);
+            spectranetCheckPCPageOut();
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
@@ -1213,10 +1284,8 @@ export function runUntil(maxT:u32):i16 {
         } else if (opcodePrefix == 0xfc) {  // fdcb
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             const indexOffset:i8 = i8(readMem(pc++));
-            let op:u8 = readMem(pc);
-            if (isSpectranetPagedIn() && (pc == 0x007c))
-                spectranetPageOut();
-            pc++;
+            let op:u8 = readMem(pc++);
+            spectranetCheckPCPageOut();
 
             switch (op) {
                 #optable fdcb
@@ -1224,6 +1293,11 @@ export function runUntil(maxT:u32):i16 {
                 default:
                     return 1;  /* unrecognised opcode */
             }
+        }
+
+        if (triggerNMI) {
+            triggerNMI = false;
+            nonMaskableInterrupt();
         }
     }
 

@@ -30,7 +30,6 @@ const loadCore = (baseUrl) => {
     ).then(results => {
         spectranet = results.instance.exports;
         spectranet_memory = spectranet.memory;
-        ;
 
         const spectranetImportObject = {
             env: {
@@ -51,6 +50,8 @@ const loadCore = (baseUrl) => {
             workerFrameData = memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
             registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
             tapePulses = new Uint16Array(core.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
+
+            core.resetROM();
 
             postMessage({
                 'message': 'ready',
