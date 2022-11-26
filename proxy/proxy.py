@@ -32,7 +32,8 @@ class ClientSocket(object):
         self.bound_port: Optional[int] = None
         self.socket: Optional[socket.socket] = None
 
-        self.session.log("New socket: {0}".format(socket_id))
+        self.session.log("New {0} socket: {1}".format(
+            "UDP" if socket_type == ClientSocket.SOCKET_TYPE_UDP else "TCP", socket_id))
 
     def bind(self, port: int):
         self.bound_port = port

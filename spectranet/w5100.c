@@ -119,39 +119,39 @@ nic_w5100_read( uint16_t reg )
       case W5100_MR:
         /* We don't support any flags, so we always return zero here */
         b = 0x00;
-        nic_w5100_debug( "w5100: reading 0x%02x from MR\n", b );
+        nic_w5100_verbose( "w5100: reading 0x%02x from MR\n", b );
         break;
       case W5100_GWR0: case W5100_GWR1: case W5100_GWR2: case W5100_GWR3:
         b = self.gw[reg - W5100_GWR0];
-        nic_w5100_debug( "w5100: reading 0x%02x from GWR%d\n", b, reg - W5100_GWR0 );
+        nic_w5100_verbose( "w5100: reading 0x%02x from GWR%d\n", b, reg - W5100_GWR0 );
         break;
       case W5100_SUBR0: case W5100_SUBR1: case W5100_SUBR2: case W5100_SUBR3:
         b = self.sub[reg - W5100_SUBR0];
-        nic_w5100_debug( "w5100: reading 0x%02x from SUBR%d\n", b, reg - W5100_SUBR0 );
+        nic_w5100_verbose( "w5100: reading 0x%02x from SUBR%d\n", b, reg - W5100_SUBR0 );
         break;
       case W5100_SHAR0: case W5100_SHAR1: case W5100_SHAR2:
       case W5100_SHAR3: case W5100_SHAR4: case W5100_SHAR5:
         b = self.sha[reg - W5100_SHAR0];
-        nic_w5100_debug( "w5100: reading 0x%02x from SHAR%d\n", b, reg - W5100_SHAR0 );
+        nic_w5100_verbose( "w5100: reading 0x%02x from SHAR%d\n", b, reg - W5100_SHAR0 );
         break;
       case W5100_SIPR0: case W5100_SIPR1: case W5100_SIPR2: case W5100_SIPR3:
         b = self.sip[reg - W5100_SIPR0];
-        nic_w5100_debug( "w5100: reading 0x%02x from SIPR%d\n", b, reg - W5100_SIPR0 );
+        nic_w5100_verbose( "w5100: reading 0x%02x from SIPR%d\n", b, reg - W5100_SIPR0 );
         break;
       case W5100_IMR:
         /* We support only "allow all" */
         b = 0xef;
-        nic_w5100_debug( "w5100: reading 0x%02x from IMR\n", b );
+        nic_w5100_verbose( "w5100: reading 0x%02x from IMR\n", b );
         break;
       case W5100_RMSR: case W5100_TMSR:
         /* We support only 2K per socket */
         b = 0x55;
-        nic_w5100_debug( "w5100: reading 0x%02x from %s\n", b, reg == W5100_RMSR ? "RMSR" : "TMSR" );
+        nic_w5100_verbose( "w5100: reading 0x%02x from %s\n", b, reg == W5100_RMSR ? "RMSR" : "TMSR" );
         break;
       default:
         b = 0xff;
         /* This is a debug rather than a warning because it happens on snapshot save */
-        nic_w5100_debug( "w5100: reading 0x%02x from unsupported register 0x%03x\n", b, reg );
+        nic_w5100_verbose( "w5100: reading 0x%02x from unsupported register 0x%03x\n", b, reg );
         break;
     }
   }
@@ -173,7 +173,7 @@ nic_w5100_read( uint16_t reg )
 static void
 w5100_write_mr( uint8_t b )
 {
-  nic_w5100_debug( "w5100: writing 0x%02x to MR\n", b );
+  nic_w5100_verbose( "w5100: writing 0x%02x to MR\n", b );
 
   if( b & 0x80 )
     nic_w5100_reset();
@@ -186,10 +186,10 @@ w5100_write_mr( uint8_t b )
 static void
 w5100_write_imr( uint8_t b )
 {
-  nic_w5100_debug( "w5100: writing 0x%02x to IMR\n", b );
+  nic_w5100_verbose( "w5100: writing 0x%02x to IMR\n", b );
 
   if( b != 0xef )
-    nic_w5100_debug(
+    nic_w5100_verbose(
                      "w5100: unsupported value 0x%02x written to IMR\n", b );
 }
   
@@ -199,10 +199,10 @@ w5100_write__msr( uint16_t reg, uint8_t b )
 {
   const char *regname = reg == W5100_RMSR ? "RMSR" : "TMSR";
 
-  nic_w5100_debug( "w5100: writing 0x%02x to %s\n", b, regname );
+  nic_w5100_verbose( "w5100: writing 0x%02x to %s\n", b, regname );
 
   if( b != 0x55 )
-    nic_w5100_debug(
+    nic_w5100_verbose(
                      "w5100: unsupported value 0x%02x written to %s\n",
                      b, regname );
 }
@@ -216,20 +216,20 @@ nic_w5100_write( uint16_t reg, uint8_t b )
         w5100_write_mr( b );
         break;
       case W5100_GWR0: case W5100_GWR1: case W5100_GWR2: case W5100_GWR3:
-        nic_w5100_debug( "w5100: writing 0x%02x to GWR%d\n", b, reg - W5100_GWR0 );
+        nic_w5100_verbose( "w5100: writing 0x%02x to GWR%d\n", b, reg - W5100_GWR0 );
         self.gw[reg - W5100_GWR0] = b;
         break;
       case W5100_SUBR0: case W5100_SUBR1: case W5100_SUBR2: case W5100_SUBR3:
-        nic_w5100_debug( "w5100: writing 0x%02x to SUBR%d\n", b, reg - W5100_SUBR0 );
+        nic_w5100_verbose( "w5100: writing 0x%02x to SUBR%d\n", b, reg - W5100_SUBR0 );
         self.sub[reg - W5100_SUBR0] = b;
         break;
       case W5100_SHAR0: case W5100_SHAR1: case W5100_SHAR2:
       case W5100_SHAR3: case W5100_SHAR4: case W5100_SHAR5:
-        nic_w5100_debug( "w5100: writing 0x%02x to SHAR%d\n", b, reg - W5100_SHAR0 );
+        nic_w5100_verbose( "w5100: writing 0x%02x to SHAR%d\n", b, reg - W5100_SHAR0 );
         self.sha[reg - W5100_SHAR0] = b;
         break;
       case W5100_SIPR0: case W5100_SIPR1: case W5100_SIPR2: case W5100_SIPR3:
-        nic_w5100_debug( "w5100: writing 0x%02x to SIPR%d\n", b, reg - W5100_SIPR0 );
+        nic_w5100_verbose( "w5100: writing 0x%02x to SIPR%d\n", b, reg - W5100_SIPR0 );
         self.sip[reg - W5100_SIPR0] = b;
         break;
       case W5100_IMR:
@@ -240,7 +240,7 @@ nic_w5100_write( uint16_t reg, uint8_t b )
         break;
       default:
         /* This is a debug rather than a warning because it happens on snapshot load */
-        nic_w5100_debug( "w5100: writing 0x%02x to unsupported register 0x%03x\n", b, reg );
+        nic_w5100_verbose( "w5100: writing 0x%02x to unsupported register 0x%03x\n", b, reg );
         break;
     }
   }

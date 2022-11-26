@@ -44,7 +44,7 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, void* ignored1, void* ig
         int fd = readfds->fd_array[i];
         if (compat_sockets[fd].rx_size)
         {
-            nic_w5100_debug("compat: select has data on socket %d (%d bytes)\n", fd,
+            nic_w5100_verbose("compat: select has data on socket %d (%d bytes)\n", fd,
                 compat_sockets[fd].rx_size);
         }
         else
@@ -410,7 +410,7 @@ unsigned int compat_rx_data(int sockfd, unsigned int sz)
     memcpy(compat_sockets[sockfd].rx_buffer + compat_sockets[sockfd].rx_size, recv_buffer, sz);
     compat_sockets[sockfd].rx_size += sz;
 
-    nic_w5100_debug("compat: placed %d bytes on socket %d, rx %d\n", sz, sockfd,
+    nic_w5100_verbose("compat: placed %d bytes on socket %d, rx %d\n", sz, sockfd,
         compat_sockets[sockfd].rx_size);
     return sz;
 }
