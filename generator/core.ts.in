@@ -242,6 +242,7 @@ let spectranetPageA:u8 = 0xC0;
 let spectranetPageB:u8 = 0xC0;
 let spectranetW5100A:u8 = 0;
 let spectranetW5100B:u8 = 0;
+let spectranetFlashB:u8 = 0;
 let spectranetNMIFlipFlop:bool = 0;
 let spectranetFlashState:u8 = 0;
 let spectranetTrap:bool = 0;
@@ -318,6 +319,11 @@ function checkW5100Page(page:u8): bool
     return page >= 0x40 && page <= 0x48;
 }
 
+function checkFlashPage(page:u8): bool
+{
+    return page <= 0x1F;
+}
+
 export function spectranetRefreshPages(): void {
     if (!spectranetPagedIn) {
         return;
@@ -338,11 +344,21 @@ export function spectranetRefreshPages(): void {
     if (checkW5100Page(spectranetPageB))
     {
         spectranetW5100B = spectranetPageB;
+        spectranetFlashB = 0;
     }
     else
     {
         memoryPageReadMap[2] = convertSpectranetPageRead(spectranetPageB);
         memoryPageWriteMap[2] = convertSpectranetPageWrite(spectranetPageB);
+
+        if (checkFlashPage(spectranetPageB))
+        {
+            spectranetFlashB = spectranetPageB;
+        }
+        else
+        {
+            spectranetFlashB = 0;
+        }
 
         spectranetW5100B = 0;
     }
@@ -452,6 +468,7 @@ export function spectranetPageOut(): void {
 
     spectranetW5100A = 0;
     spectranetW5100B = 0;
+    spectranetFlashB = 0;
 
     spectranetPagedIn = false;
     spectranetPagedInIO = false;
@@ -739,18 +756,14 @@ function writeMem(addr:u16, val:u8):void {
             spectranet_w5100_write(spectranetW5100A, addr, val);
             return;
         }
-        if (spectranetPageA <= 0x1F) {
-            spectranetWriteROM(spectranetPageA, addr & 0x0fff, val);
-            return;
-        }
     }
     if (page_addr == 2) {
         if (spectranetW5100B) {
             spectranet_w5100_write(spectranetW5100B, addr, val);
             return;
         }
-        if (spectranetPageB <= 0x1F) {
-            spectranetWriteROM(spectranetPageB, addr & 0x0fff, val);
+        if (spectranetFlashB) {
+            spectranetWriteROM(spectranetFlashB, addr & 0x0fff, val);
             return;
         }
     }
@@ -827,6 +840,9 @@ export function readPort(addr:u16):u8 {
             result = 0;
         } else if (spectranet && ((addr & 0x033B) == 0x033B)) {
             result = 0;
+            if (spectranetTrap) {
+                result |= 0x08;
+            }
         } else {
             if (machineType == 48 || machineType == 49 || machineType == 128 || machineType == 129) {
                 /* floating bus */
