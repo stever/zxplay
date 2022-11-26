@@ -11,6 +11,7 @@ import { AudioHandler } from './audio.js';
 
 import openIcon from './icons/open.svg';
 import resetIcon from './icons/reset.svg';
+import magicIcon from './icons/magic.svg';
 import playIcon from './icons/play.svg';
 import pauseIcon from './icons/pause.svg';
 import fullscreenIcon from './icons/fullscreen.svg';
@@ -222,6 +223,10 @@ class Emulator extends EventEmitter {
 
     reset() {
         this.worker.postMessage({message: 'reset'});
+    }
+
+    nmi() {
+        this.worker.postMessage({message: 'nmi'});
     }
 
     loadSnapshot(snapshot) {
@@ -531,6 +536,9 @@ window.JSSpeccy = (container, opts) => {
         } else {
             emu.start();
         }
+    });
+    ui.toolbar.addButton(magicIcon, {label: 'Magic'}, () => {
+        emu.nmi();
     });
     emu.on('pause', () => {
         pauseButton.setIcon(playIcon);

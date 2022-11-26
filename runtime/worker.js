@@ -233,6 +233,9 @@ onmessage = (e) => {
         case 'reset':
             core.reset();
             break;
+        case 'nmi':
+            core.nonMaskableInterrupt();
+            break;
         case 'loadMemory':
             loadMemoryPage(e.data.page, e.data.offset, e.data.data);
             break;
