@@ -1,9 +1,11 @@
 #include "compat.h"
 #include "compat_internals.h"
 #include "debug.h"
+#include "compat_api.h"
 
 #include <string.h>
 
+uint8_t recv_buffer[4096];
 static struct socket_ref_t compat_sockets[COMPAT_MAX_SOCKETS] = {};
 static enum internal_error_t internal_error = INTERNAL_ERROR_OK;
 
@@ -111,6 +113,7 @@ int socket(int domain, int type, int protocol)
         compat_sockets[i].used = 1;
         compat_sockets[i].socket_type = sock_type;
 
+        nic_socket(i, protocol);
         nic_w5100_debug("compat: opened %d type %d\n", i, sock_type);
         return i;
     }
@@ -147,6 +150,8 @@ int compat_socket_close(compat_socket_t sockfd)
         return -1;
     }
 
+    nic_socket_close(sockfd);
+
     compat_sockets[sockfd].used = 0;
     return 0;
 }
@@ -160,7 +165,11 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
         return -1;
     }
 
-    nic_w5100_debug("compat: bind %d\n", sockfd);
+    uint16_t port = ntohs(addr_in->sin_port);
+    nic_w5100_debug("compat: bind %d to port %d\n", sockfd, port);
+
+    nic_bind(sockfd, port);
+
     compat_sockets[sockfd].bound = 1;
     compat_sockets[sockfd].bound_address = *addr_in;
     return 0;
@@ -225,8 +234,6 @@ int16_t recvfrom(int sockfd, void *buf, uint16_t len, int flags, struct sockaddr
         return -1;
     }
 
-    nic_w5100_debug("compat: recvfrom %d\n", sockfd);
-
     if (len > compat_sockets[sockfd].rx_size)
     {
         len = compat_sockets[sockfd].rx_size;
@@ -267,11 +274,15 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
     struct sockaddr_in* dest_addr_in = (struct sockaddr_in*)dest_addr;
     uint16_t port = ntohs(dest_addr_in->sin_port);
 
+    uint8_t* addr = (uint8_t*)&dest_addr_in->sin_addr;
     nic_w5100_debug("compat: sendto %d port %d\n", sockfd, port);
+    nic_sendto(sockfd, addr, sizeof(dest_addr_in->sin_addr), port, buf, len);
+
+    /*
 
     if (port == 67)
     {
-        /* Special case for DHCP */
+        // Special case for DHCP
         compat_sockets[sockfd].socket_type = SOCKET_TYPE_DHCP;
 
         if (compat_sockets[sockfd].bound)
@@ -279,7 +290,7 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
             uint16_t bound_port = ntohs(compat_sockets[sockfd].bound_address.sin_port);
             nic_w5100_debug("compat: dhcp auto-response to port %d\n", bound_port);
 
-            /* Place a response on immediately */
+            // Place a response on immediately
 
             const uint8_t* options = buf + 240;
             if (options[0] != 0x35)
@@ -292,7 +303,7 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
             {
                 case 1:
                 {
-                    /* discover */
+                    // discover
                     nic_w5100_debug("compat: dhcp discover\n");
 
                     uint8_t response[] = {
@@ -330,7 +341,7 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
                 }
                 case 3:
                 {
-                    /* request */
+                    // request
                     nic_w5100_debug("compat: dhcp request\n");
 
                     uint8_t response[] = {
@@ -377,24 +388,26 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
         return len;
     }
 
+    */
+
     return len;
 }
 
-uint16_t compat_rx_data(int sockfd, uint8_t* data, uint16_t sz)
+unsigned int compat_rx_data(int sockfd, unsigned int sz)
 {
     if (check_fd(sockfd))
     {
         return 0;
     }
 
-    uint16_t fits = MAX_RX_BUFFER - compat_sockets[sockfd].rx_size;
+    unsigned int fits = MAX_RX_BUFFER - compat_sockets[sockfd].rx_size;
 
     if (sz > fits)
     {
         sz = fits;
     }
 
-    memcpy(compat_sockets[sockfd].rx_buffer + compat_sockets[sockfd].rx_size, data, sz);
+    memcpy(compat_sockets[sockfd].rx_buffer + compat_sockets[sockfd].rx_size, recv_buffer, sz);
     compat_sockets[sockfd].rx_size += sz;
 
     nic_w5100_debug("compat: placed %d bytes on socket %d, rx %d\n", sz, sockfd,

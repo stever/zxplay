@@ -20,6 +20,7 @@ export default [
         output: {
             filename: 'jsspeccy/jsspeccy-worker.js',
         },
+        devtool: 'source-map',
         name: 'worker',
         entry: './runtime/worker.js',
         mode: 'production',

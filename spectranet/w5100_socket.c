@@ -100,7 +100,7 @@ w5100_write_socket_mr( nic_w5100_socket_t *socket, uint8_t b )
   w5100_socket_mode mode = b & 0x0f;
   uint8_t flags = b & 0xf0;
 
-  nic_w5100_debug( "w5100: writing 0x%02x to S%d_MR\n", b, socket->id );
+  nic_w5100_verbose( "w5100: writing 0x%02x to S%d_MR\n", b, socket->id );
 
   switch( mode ) {
     case W5100_SOCKET_MODE_CLOSED:
@@ -324,7 +324,7 @@ w5100_socket_recv( struct nic_w5100_t *self, nic_w5100_socket_t *socket )
 static void
 w5100_write_socket_cr( struct nic_w5100_t *self, nic_w5100_socket_t *socket, uint8_t b )
 {
-  nic_w5100_debug( "w5100: writing 0x%02x to S%d_CR\n", b, socket->id );
+  nic_w5100_verbose( "w5100: writing 0x%02x to S%d_CR\n", b, socket->id );
 
   switch( b ) {
     case W5100_SOCKET_COMMAND_OPEN:
@@ -446,38 +446,38 @@ nic_w5100_socket_write( struct nic_w5100_t *self, uint16_t reg, uint8_t b )
       w5100_write_socket_cr( self, socket, b );
       break;
     case W5100_SOCKET_IR:
-      nic_w5100_debug( "w5100: writing 0x%02x to S%d_IR\n", b, socket->id );
+      nic_w5100_verbose( "w5100: writing 0x%02x to S%d_IR\n", b, socket->id );
       socket->ir &= ~b;
       break;
     case W5100_SOCKET_PORT0: case W5100_SOCKET_PORT1:
       w5100_write_socket_port( self, socket, socket_reg - W5100_SOCKET_PORT0, b );
       break;
     case W5100_SOCKET_DIPR0: case W5100_SOCKET_DIPR1: case W5100_SOCKET_DIPR2: case W5100_SOCKET_DIPR3:
-      nic_w5100_debug( "w5100: writing 0x%02x to S%d_DIPR%d\n", b, socket->id, socket_reg - W5100_SOCKET_DIPR0 );
+      nic_w5100_verbose( "w5100: writing 0x%02x to S%d_DIPR%d\n", b, socket->id, socket_reg - W5100_SOCKET_DIPR0 );
       socket->dip[socket_reg - W5100_SOCKET_DIPR0] = b;
       break;
     case W5100_SOCKET_DPORT0: case W5100_SOCKET_DPORT1:
-      nic_w5100_debug( "w5100: writing 0x%02x to S%d_DPORT%d\n", b, socket->id, socket_reg - W5100_SOCKET_DPORT0 );
+      nic_w5100_verbose( "w5100: writing 0x%02x to S%d_DPORT%d\n", b, socket->id, socket_reg - W5100_SOCKET_DPORT0 );
       socket->dport[socket_reg - W5100_SOCKET_DPORT0] = b;
       break;
     case W5100_SOCKET_TX_WR0:
-      nic_w5100_debug( "w5100: writing 0x%02x to S%d_TX_WR0\n", b, socket->id );
+      nic_w5100_verbose( "w5100: writing 0x%02x to S%d_TX_WR0\n", b, socket->id );
       socket->tx_wr = (socket->tx_wr & 0xff) | (b << 8);
       break;
     case W5100_SOCKET_TX_WR1:
-      nic_w5100_debug( "w5100: writing 0x%02x to S%d_TX_WR1\n", b, socket->id );
+      nic_w5100_verbose( "w5100: writing 0x%02x to S%d_TX_WR1\n", b, socket->id );
       socket->tx_wr = (socket->tx_wr & 0xff00) | b;
       break;
     case W5100_SOCKET_RX_RD0:
-      nic_w5100_debug( "w5100: writing 0x%02x to S%d_RX_RD0\n", b, socket->id );
+      nic_w5100_verbose( "w5100: writing 0x%02x to S%d_RX_RD0\n", b, socket->id );
       socket->rx_rd = (socket->rx_rd & 0xff) | (b << 8);
       break;
     case W5100_SOCKET_RX_RD1:
-      nic_w5100_debug( "w5100: writing 0x%02x to S%d_RX_RD1\n", b, socket->id );
+      nic_w5100_verbose( "w5100: writing 0x%02x to S%d_RX_RD1\n", b, socket->id );
       socket->rx_rd = (socket->rx_rd & 0xff00) | b;
       break;
     default:
-      nic_w5100_debug( "w5100: writing 0x%02x to unsupported register 0x%03x\n", b, reg );
+      nic_w5100_verbose( "w5100: writing 0x%02x to unsupported register 0x%03x\n", b, reg );
       break;
   }
 
@@ -527,14 +527,14 @@ nic_w5100_socket_add_to_sets( nic_w5100_socket_t *socket, fd_set *readfds,
       FD_SET( socket->fd, readfds );
       if( socket->fd > *max_fd )
         *max_fd = socket->fd;
-      nic_w5100_debug( "w5100: checking for read on socket %d with fd %d; max fd %d\n", socket->id, socket->fd, *max_fd );
+      nic_w5100_verbose( "w5100: checking for read on socket %d with fd %d; max fd %d\n", socket->id, socket->fd, *max_fd );
     }
 
     if( socket->write_pending ) {
       FD_SET( socket->fd, writefds );
       if( socket->fd > *max_fd )
         *max_fd = socket->fd;
-      nic_w5100_debug( "w5100: write pending on socket %d with fd %d; max fd %d\n", socket->id, socket->fd, *max_fd );
+      nic_w5100_verbose( "w5100: write pending on socket %d with fd %d; max fd %d\n", socket->id, socket->fd, *max_fd );
     }
   }
 }

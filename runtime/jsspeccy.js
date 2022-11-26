@@ -8,6 +8,7 @@ import { parseSNAFile, parseZ80File, parseSZXFile } from './snapshot.js';
 import { TAPFile, TZXFile } from './tape.js';
 import { KeyboardHandler } from './keyboard.js';
 import { AudioHandler } from './audio.js';
+import { Long, serialize, deserialize } from 'bson';
 
 import openIcon from './icons/open.svg';
 import resetIcon from './icons/reset.svg';
@@ -37,6 +38,7 @@ class Emulator extends EventEmitter {
         this.tapeTrapsEnabled = ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true;
 
         this.msPerFrame = 20;
+        this.wsProxy = null;
 
         this.isExecutingFrame = false;
         this.nextFrameTime = null;
@@ -111,14 +113,48 @@ class Emulator extends EventEmitter {
                     this.tapeIsPlaying = false;
                     this.emit('stoppedTape');
                     break;
+                case 'sendToProxy':
+                    this.wsProxy.send(serialize({
+                        "m": e.data.method,
+                        "a": e.data.args
+                    }));
+                    break;
                 default:
                     console.log('message received by host:', e.data);
             }
-        }
-        this.worker.postMessage({
-            message: 'loadCore',
-            baseUrl: scriptUrl,
-        })
+        };
+
+        const worker = this.worker;
+        this.wsProxy = new WebSocket('ws://localhost:5000');
+
+        this.wsProxy.onopen = function() {
+            console.log("Connected to WS proxy.");
+            worker.postMessage({
+                message: 'loadCore',
+                baseUrl: scriptUrl,
+            });
+        };
+
+        this.wsProxy.onclose = function(event) {
+          console.log("Connection closed " + error.message);
+        };
+
+        this.wsProxy.onmessage = function(event) {
+            event.data.arrayBuffer().then((b) => {
+                const d = deserialize(b);
+
+                worker.postMessage({
+                    message: 'msg',
+                    method: d.m,
+                    args: d.a
+                });
+            });
+        };
+
+        this.wsProxy.onerror = function(event) {
+          console.log("Error " + event);
+        };
+
     }
 
     start() {

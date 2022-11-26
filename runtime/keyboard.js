@@ -50,6 +50,8 @@ const KEY_CODES = {
     38: {row: 4, mask: 0x08, caps: true}, /* up arrow => caps + 7 */
     39: {row: 4, mask: 0x04, caps: true}, /* right arrow => caps + 8 */
     40: {row: 4, mask: 0x10, caps: true}, /* down arrow => caps + 6 */
+    188: {row: 7, mask: 0x0A}, /* comma => caps + N */
+    190: {row: 7, mask: 0x06}, /* period => caps + M */
 };
 
 

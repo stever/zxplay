@@ -13,14 +13,37 @@ let tapePulses = null;
 let stopped = false;
 let tape = null;
 let tapeIsPlaying = false;
+let processMsgFromProxy = null;
 
 const loadCore = (baseUrl) => {
+
+    const sendToProxy = (method, args) => {
+        postMessage({
+            'message': 'sendToProxy',
+            method: method,
+            args: args
+        });
+    };
 
     const importObject = {
         env: {
             abort: m => { /* ... */ },
             debug_print: (s, len) => {
                 console.log(String.fromCharCode.apply(String, new Uint8Array(spectranet_memory.buffer, s, len)));
+            },
+            nic_socket: (sockfd, s_type) => {
+                sendToProxy("socket", [sockfd, s_type]);
+            },
+            nic_bind: (sockfd, port) => {
+                sendToProxy("bind", [sockfd, port]);
+            },
+            nic_socket_close: (sockfd, s_type) => {
+                sendToProxy("socket_close", [sockfd]);
+            },
+            nic_sendto: (sockfd, address_ptr, address_len, port, buf, len) => {
+                sendToProxy("sendto", [sockfd,
+                    Array.from(new Uint8Array(spectranet_memory.buffer, address_ptr, address_len)),
+                    port, Array.from(new Uint8Array(spectranet_memory.buffer, buf, len))]);
             }
         }
     };
@@ -30,6 +53,23 @@ const loadCore = (baseUrl) => {
     ).then(results => {
         spectranet = results.instance.exports;
         spectranet_memory = spectranet.memory;
+
+        const recv_buffer = spectranet.recv_buffer;
+
+        processMsgFromProxy = (method, args) => {
+            switch (method)
+            {
+                case 'recv':
+                {
+                    const socketId = args[0];
+                    const pay = args[1];
+                    const array = new Int8Array(spectranet_memory.buffer, recv_buffer, pay.buffer.length);
+                    array.set(pay.buffer);
+                    spectranet.compat_rx_data(socketId, pay.buffer.length);
+                    break;
+                }
+            }
+        };
 
         const spectranetImportObject = {
             env: {
@@ -284,6 +324,11 @@ onmessage = (e) => {
             break;
         case 'setTapeTraps':
             core.setTapeTraps(e.data.value);
+            break;
+        case 'msg':
+            const method = e.data.method;
+            const args = e.data.args;
+            processMsgFromProxy(method, args);
             break;
         default:
             console.log('message received by worker:', e.data);

@@ -1,0 +1,3 @@
+dnslib==0.9.23
+jsonrpcserver==5.0.9
+tornado==6.2

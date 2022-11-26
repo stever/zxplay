@@ -22,7 +22,7 @@ typedef uint16_t socklen_t;
 #define ntohl(x) (((x << 8) & 0xFF00) | (uint8_t)(x >> 8))
 
 #define FD_SETSIZE (8)
-#define MAX_RX_BUFFER (2048)
+#define MAX_RX_BUFFER (262144)
 
 typedef struct fd_set {
   uint8_t  fd_count;
@@ -65,6 +65,8 @@ int16_t recvfrom(int sockfd, void *buf, uint16_t len, int flags, struct sockaddr
 int16_t send(int sockfd, const void *buf, uint16_t len, int flags);
 int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
 
-uint16_t compat_rx_data(int sockfd, uint8_t* data, uint16_t sz);
+extern uint8_t recv_buffer[4096];
+
+unsigned int compat_rx_data(int sockfd, unsigned int sz);
 
 #endif
