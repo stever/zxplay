@@ -839,7 +839,7 @@ export function readPort(addr:u16):u8 {
             /* kempston joystick */
             result = 0;
         } else if (spectranet && ((addr & 0x033B) == 0x033B)) {
-            result = 0;
+            result = borderColour & 0x07;
             if (spectranetTrap) {
                 result |= 0x08;
             }
