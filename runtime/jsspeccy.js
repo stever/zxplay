@@ -451,9 +451,6 @@ window.JSSpeccy = (container, opts) => {
     const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
         emu.setMachine(128);
     });
-    const machine128WSpectranetItem = machineMenu.addItem('128K + Spectranet', () => {
-        emu.setMachine(129);
-    });
     const machinePentagonItem = machineMenu.addItem('Pentagon 128', () => {
         emu.setMachine(5);
     });
@@ -493,31 +490,21 @@ window.JSSpeccy = (container, opts) => {
             machine48Item.setBullet();
             machine48WSpectanetItem.unsetBullet();
             machine128Item.unsetBullet();
-            machine128WSpectranetItem.unsetBullet();
             machinePentagonItem.unsetBullet();
         } else if (type == 49) {
             machine48Item.unsetBullet();
             machine48WSpectanetItem.setBullet();
             machine128Item.unsetBullet();
-            machine128WSpectranetItem.unsetBullet();
             machinePentagonItem.unsetBullet();
         } else if (type == 128) {
             machine48Item.unsetBullet();
             machine48WSpectanetItem.unsetBullet();
             machine128Item.setBullet();
-            machine128WSpectranetItem.unsetBullet();
-            machinePentagonItem.unsetBullet();
-        } else if (type == 129) {
-            machine48Item.unsetBullet();
-            machine48WSpectanetItem.unsetBullet();
-            machine128Item.unsetBullet();
-            machine128WSpectranetItem.setBullet();
             machinePentagonItem.unsetBullet();
         } else { // pentagon
             machine48Item.unsetBullet();
             machine48WSpectanetItem.unsetBullet();
             machine128Item.unsetBullet();
-            machine128WSpectranetItem.unsetBullet();
             machinePentagonItem.setBullet();
         }
     });

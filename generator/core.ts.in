@@ -431,10 +431,10 @@ export function spectranetPageIn(io: bool): void {
     // 56..87 = Spectranet RAM
     // 88..119 = Spectranet ROM
 
-    memoryPageReadMap[0] = 88;
-    memoryPageReadMap[3] = 87;
+    memoryPageReadMap[0] = 88; // sector 0x0000...0x0fff is permanently mapped into page 0 ROM
+    memoryPageReadMap[3] = 87; // sector 0x3000...0x3fff is permanently mapped into page 0 RAM
 
-    memoryPageWriteMap[0] = 44;
+    memoryPageWriteMap[0] = 44; // sector 0x0000...0x0fff is not writable
     memoryPageWriteMap[3] = 87;
 
     spectranetPagedIn = 1;
@@ -594,11 +594,6 @@ export function reset():void {
         memoryPageReadMap = [32, 33, 34, 35, 20, 21, 22, 23, 8, 9, 10, 11, 0, 1, 2, 3];
         memoryPageWriteMap = [44, 45, 46, 47, 20, 21, 22, 23, 8, 9, 10, 11, 0, 1, 2, 3];
         pagingLocked = 0;
-
-        if (machineType == 129) {
-            enableSpectranet();
-            spectranetPageIn(false);
-        }
     }
     for (let i:u8 = 0; i < 14; i++) {
         writeAYRegister(i, 0);
@@ -844,7 +839,7 @@ export function readPort(addr:u16):u8 {
                 result |= 0x08;
             }
         } else {
-            if (machineType == 48 || machineType == 49 || machineType == 128 || machineType == 129) {
+            if (machineType == 48 || machineType == 49 || machineType == 128) {
                 /* floating bus */
                 updateFramebuffer();
                 result = floatingBusValue;
