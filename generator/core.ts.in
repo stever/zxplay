@@ -418,10 +418,10 @@ export function spectranetPageIn(io: bool): void {
     // 88..119 = Spectranet ROM
 
     memoryPageReadMap[0] = 88; // sector 0x0000...0x0fff is permanently mapped into page 0 ROM
-    memoryPageReadMap[3] = 87; // sector 0x3000...0x3fff is permanently mapped into page 0 RAM
+    memoryPageReadMap[3] = 56; // sector 0x3000...0x3fff is permanently mapped into page 0 RAM
 
     memoryPageWriteMap[0] = 44; // sector 0x0000...0x0fff is not writable
-    memoryPageWriteMap[3] = 87;
+    memoryPageWriteMap[3] = 56;
 
     spectranetPagedIn = 1;
     spectranetPagedInIO = io;
