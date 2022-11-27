@@ -1,14 +1,12 @@
 import tornado.ioloop
 from tornado import ioloop, web, websocket
 from typing import Dict, Callable, Optional
-from dnslib import DNSRecord, DNSError, RR, QTYPE, A
 import ipaddress
 
 import bson
 import socket
 import select
 import threading
-import time
 
 
 class RequestError(Exception):
@@ -42,33 +40,6 @@ class ClientSocket(object):
     def bind(self, port: int):
         self.bound_port = port
 
-    def handle_dns(self, data: bytes):
-        try:
-            q = DNSRecord.parse(data)
-        except DNSError as e:
-            raise RequestError("DNSError: {0}" + str(e))
-        if len(q.questions) == 0:
-            raise RequestError("Empty DNS request")
-        dn = q.questions[0].qname
-        dn_name = b'.'.join(dn.label).decode()
-
-        try:
-            host = socket.gethostbyname(dn_name)
-        except Exception as e:
-            self.session.log("Failed to resolve host {0}: {1}".format(dn_name, str(e)))
-            a = q.reply()
-            a.header.set_rcode(0x3)
-            self.recv(self.socket_id, bytes(a.pack()))
-            return
-
-        a = q.reply()
-
-        self.session.log("DNS {0} resolved to {1}".format(dn_name, host))
-        self.session.dns_mapping[self.session.dns_mapping_address_pool] = dn_name
-        self.session.dns_mapping_address_pool += 1
-        a.add_answer(RR(dn, QTYPE.A, rdata=A(host), ttl=600))
-        self.recv(self.socket_id, bytes(a.pack()))
-
     def _do_bind(self):
         self.socket.bind(('', 0))
         self.local_port = self.socket.getsockname()[1]
@@ -101,16 +72,13 @@ class ClientSocket(object):
             return
 
         if port == 53:
-            self.handle_dns(data)
-            return
-
-        if port < 1024:
-            return
-
-        try:
-            target_host = ipaddress.ip_address(bytes(address))
-        except ValueError:
-            return
+            # make sure DNS always goes to google
+            target_host = '8.8.8.8'
+        else:
+            try:
+                target_host = ipaddress.ip_address(bytes(address))
+            except ValueError:
+                return
 
         if self.socket is None:
             if self.bound_port is None:
@@ -138,10 +106,14 @@ class ClientSocket(object):
         if self.socket:
             return
 
-        try:
-            target_host = ipaddress.ip_address(bytes(address))
-        except ValueError:
-            return
+        if port == 53:
+            # make sure DNS always goes to google
+            target_host = '8.8.8.8'
+        else:
+            try:
+                target_host = ipaddress.ip_address(bytes(address))
+            except ValueError:
+                return
 
         if self.socket is None:
             if self.bound_port is None:
@@ -151,7 +123,7 @@ class ClientSocket(object):
         # self.session.log("> {0}".format(len(data)))
         try:
             self.socket.connect((str(target_host), port))
-        except TimeoutError:
+        except Exception:
             self.connected(self.socket_id, 0)
         else:
             self.connected(self.socket_id, 1)
