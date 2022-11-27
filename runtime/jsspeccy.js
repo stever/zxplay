@@ -197,16 +197,7 @@ class Emulator extends EventEmitter {
         await this.loadRom('roms/48.rom', 40);
         await this.loadRom('roms/pentagon-0.rom', 48);
         await this.loadRom('roms/trdos.rom', 52);
-        await this.loadRom('roms/spectranet/page0.bin', 88);
-        await this.loadRom('roms/spectranet/page1.bin', 89);
-        await this.loadRom('roms/spectranet/page2.bin', 90);
-        await this.loadRom('roms/spectranet/page3.bin', 91);
-        await this.loadRom('roms/spectranet/jumptable.bin', 91, 0x0F00);
-        await this.loadRom('roms/spectranet/basext.module', 92);
-        await this.loadRom('roms/spectranet/streams.module', 93);
-        await this.loadRom('roms/spectranet/msgrom.module', 94);
-        await this.loadRom('roms/spectranet/config.module', 95);
-        await this.loadRom('roms/spectranet/snapman.module', 96);
+        await this.loadRom('roms/spectranet.rom', 88);
     }
 
 
