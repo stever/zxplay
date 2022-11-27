@@ -104,6 +104,9 @@ class ClientSocket(object):
             self.handle_dns(data)
             return
 
+        if port < 1024:
+            return
+
         try:
             target_host = ipaddress.ip_address(bytes(address))
         except ValueError:
