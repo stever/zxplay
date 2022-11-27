@@ -245,12 +245,46 @@ let spectranetW5100B:u8 = 0;
 let spectranetFlashB:u8 = 0;
 let spectranetNMIFlipFlop:bool = 0;
 let spectranetFlashState:u8 = 0;
+let dumped:u8 = 0;
 let spectranetTrap:bool = 0;
 let spectranetTrapMSB:bool = 0;
 let spectranetTrapPC:u16 = 0;
 
 @external("env", "updateSpectranetIO")
 declare function updateSpectranetIO(): void;
+
+@external("env", "debug_print")
+declare function debug_print(ptr: usize, len: i32): void;
+
+@external("env", "debug_pc")
+declare function debug_pc(pc: u16): void;
+
+@external("env", "debug_print_hex")
+declare function debug_print_hex(ptr: usize, len: i32): void;
+
+function debugPrint(s: string): void {
+    const b: ArrayBuffer = String.UTF8.encode(s);
+    const d = new DataView(b);
+    debug_print(d.dataStart, d.byteLength);
+}
+
+function debugPrintHex(h: DataView): void {
+    debug_print_hex(h.dataStart, h.byteLength);
+}
+
+export function dump(): void {
+    debug_pc(pc);
+    const b: Uint8Array = new Uint8Array(65536);
+    for (let i: u32 = 0; i < 16; i++)  {
+        const sectorOffset:u32 = i * 4096;
+        const pg: u16 = memoryPageReadMap[i];
+        const pageOffset:u32 = u32(pg) << 12;
+        for (let x: u32 = 0; x < 4096; x++) {
+            b[x + sectorOffset] = machineMemory[pageOffset + x];
+        }
+    }
+    debugPrintHex(new DataView(b.buffer));
+}
 
 @external("env", "spectranetReset")
 declare function spectranetReset(): void;
@@ -376,54 +410,6 @@ export function writeSpectranetROM(addr: u32, val: u8): void {
     // reset spectranet ROM to FF to emulate FLASH
     const offset: u32 = 88 * 0x1000;
     machineMemory[addr + offset] = val;
-}
-
-export function spectranetWriteROM(romPage: u8, addr: u16, b: u8): void {
-    // custom memory writing on spectranet ROM
-
-    if (spectranetFlashState == 0) {
-        if( addr == 0x555 && b == 0xaa )
-            spectranetFlashState = 1;
-    } else {
-        switch (spectranetFlashState) {
-            case 1:
-                if( addr == 0x2aa && b == 0x55 )
-                    spectranetFlashState = 2;
-                break;
-            case 2:
-                if( addr == 0x555 ) {
-                    if( b == 0xa0 )
-                        spectranetFlashState = 6;
-                    else if( b == 0x80 )
-                        spectranetFlashState = 3;
-                }
-                break;
-            case 3:
-                if( addr == 0x555 && b == 0xaa )
-                    spectranetFlashState = 4;
-                break;
-            case 4:
-                if( addr == 0x2aa && b == 0x55 )
-                    spectranetFlashState = 5;
-                break;
-            case 5:
-                if( addr == 0x555 && b == 0x10 ) {
-                    eraseSpectranetROM(0, 32 * 0x1000);
-                    spectranetFlashState = 0;
-                } else if( b == 0x30 ) {
-                    eraseSpectranetROM((romPage / 4) * 0x4000, 0x4000);
-                    spectranetFlashState = 0;
-                }
-                break;
-            case 6:
-                writeSpectranetROM(romPage * 0x1000 + addr, b);
-                spectranetFlashState = 0;
-            break;
-        }
-
-        if( b == 0x0f )
-            spectranetFlashState = 0;
-    }
 }
 
 export function spectranetPageIn(io: bool): void {
@@ -757,11 +743,77 @@ function writeMem(addr:u16, val:u8):void {
             spectranet_w5100_write(spectranetW5100B, addr, val);
             return;
         }
-        if (spectranetFlashB) {
-            spectranetWriteROM(spectranetFlashB, addr & 0x0fff, val);
-            return;
+    }
+
+    if (spectranetFlashB) {
+        if (spectranetFlashState == 0) {
+            if( addr == 0x555 && val == 0xaa )
+            {
+                spectranetFlashState = 1;
+                return;
+            }
+        } else {
+            switch (spectranetFlashState) {
+                case 1:
+                    if( addr == 0x2aa && val == 0x55 )
+                    {
+                        spectranetFlashState = 2;
+                        return;
+                    }
+                    break;
+                case 2:
+                    if( addr == 0x555 ) {
+                        if( val == 0xa0 )
+                        {
+                            spectranetFlashState = 6;
+                            return;
+                        }
+                        else if( val == 0x80 )
+                        {
+                            spectranetFlashState = 3;
+                            return;
+                        }
+                    }
+                    break;
+                case 3:
+                    if( addr == 0x555 && val == 0xaa )
+                    {
+                        spectranetFlashState = 4;
+                        return;
+                    }
+                    break;
+                case 4:
+                    if( addr == 0x2aa && val == 0x55 )
+                    {
+                        spectranetFlashState = 5;
+                        return;
+                    }
+                    break;
+                case 5:
+                    if( addr == 0x555 && val == 0x10 ) {
+                        eraseSpectranetROM(0, 32 * 0x1000);
+                        spectranetFlashState = 0;
+                        return;
+                    } else if( val == 0x30 ) {
+                        eraseSpectranetROM((spectranetFlashB / 4) * 0x4000, 0x4000);
+                        spectranetFlashState = 0;
+                        return;
+                    }
+                    break;
+                case 6:
+                    writeSpectranetROM(spectranetFlashB * 0x1000 + (addr & 0x0fff), val);
+                    spectranetFlashState = 0;
+                    return;
+            }
+
+            if( val == 0x0f )
+            {
+                spectranetFlashState = 0;
+                return;
+            }
         }
     }
+
     const page:u8 = memoryPageWriteMap[page_addr];
     const pageStartPtr:u32 = u32(page) << 12;
     const page_16k:u8 = page >> 2;
