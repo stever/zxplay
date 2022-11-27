@@ -27,6 +27,8 @@ struct socket_ref_t
     struct sockaddr_in bound_address;
     uint8_t rx_buffer[MAX_RX_BUFFER];
     uint16_t rx_size;
+    connected_cb_t connected;
+    void* connected_user;
 };
 
 #endif

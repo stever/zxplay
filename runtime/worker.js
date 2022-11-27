@@ -44,6 +44,13 @@ const loadCore = (baseUrl) => {
                 sendToProxy("sendto", [sockfd,
                     Array.from(new Uint8Array(spectranet_memory.buffer, address_ptr, address_len)),
                     port, Array.from(new Uint8Array(spectranet_memory.buffer, buf, len))]);
+            },
+            nic_send: (sockfd, buf, len) => {
+                sendToProxy("send", [sockfd, Array.from(new Uint8Array(spectranet_memory.buffer, buf, len))]);
+            },
+            nic_connect: (sockfd, address_ptr, address_len, port) => {
+                sendToProxy("connect", [sockfd,
+                    Array.from(new Uint8Array(spectranet_memory.buffer, address_ptr, address_len)), port]);
             }
         }
     };
@@ -66,6 +73,13 @@ const loadCore = (baseUrl) => {
                     const array = new Int8Array(spectranet_memory.buffer, recv_buffer, pay.buffer.length);
                     array.set(pay.buffer);
                     spectranet.compat_rx_data(socketId, pay.buffer.length);
+                    break;
+                }
+                case 'connected':
+                {
+                    const socketId = args[0];
+                    const success = args[1];
+                    spectranet.compat_connected(socketId, success);
                     break;
                 }
             }
@@ -329,6 +343,9 @@ onmessage = (e) => {
             const method = e.data.method;
             const args = e.data.args;
             processMsgFromProxy(method, args);
+            break;
+        case 'proxyTerm':
+            spectranet.compat_proxy_term();
             break;
         default:
             console.log('message received by worker:', e.data);

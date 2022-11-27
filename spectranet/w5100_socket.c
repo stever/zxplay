@@ -229,6 +229,23 @@ w5100_socket_listen( struct nic_w5100_t *self, nic_w5100_socket_t *socket )
   }
 }
 
+static void connect_callback(void* user, int success)
+{
+    nic_w5100_socket_t* socket = (nic_w5100_socket_t*)user;
+
+    if (success)
+    {
+        socket->ir |= 1 << 0;
+        socket->state = W5100_SOCKET_STATE_ESTABLISHED;
+    }
+    else
+    {
+        nic_w5100_debug("w5100: failed to connect socket %d\n", socket->id);
+        socket->ir |= 1 << 3;
+        socket->state = W5100_SOCKET_STATE_CLOSED;
+    }
+}
+
 static void
 w5100_socket_connect( struct nic_w5100_t *self, nic_w5100_socket_t *socket )
 {
@@ -244,19 +261,13 @@ w5100_socket_connect( struct nic_w5100_t *self, nic_w5100_socket_t *socket )
     memcpy( &sa.sin_port, socket->dport, 2 );
     memcpy( &sa.sin_addr.s_addr, socket->dip, 4 );
 
-    if( connect( socket->fd, (struct sockaddr*)&sa, sizeof(sa) ) == -1 ) {
-      nic_w5100_debug(
-        "w5100: failed to connect socket %d to 0x%08x:0x%04x; errno %d: %s\n",
-        socket->id, ntohl(sa.sin_addr.s_addr), ntohs(sa.sin_port),
-        compat_socket_get_error(), compat_socket_get_strerror() );
-
+    if( connect( socket->fd, (struct sockaddr*)&sa, sizeof(sa), connect_callback, socket ) == -1 ) {
+      nic_w5100_debug("w5100: failed to connect socket %d\n", socket->id);
       socket->ir |= 1 << 3;
       socket->state = W5100_SOCKET_STATE_CLOSED;
       return;
     }
-
-    socket->ir |= 1 << 0;
-    socket->state = W5100_SOCKET_STATE_ESTABLISHED;
+    /* waiting for callback */
   }
 }
 

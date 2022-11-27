@@ -150,8 +150,8 @@ int compat_socket_close(compat_socket_t sockfd)
         return -1;
     }
 
+    nic_w5100_debug("compat: socket %d closed\n", sockfd);
     nic_socket_close(sockfd);
-
     compat_sockets[sockfd].used = 0;
     return 0;
 }
@@ -187,18 +187,32 @@ int listen(int sockfd, int backlog)
     return -1;
 }
 
-int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen, connected_cb_t connected, void* connected_user)
 {
     if (check_fd(sockfd))
     {
         return -1;
     }
 
+    compat_sockets[sockfd].connected = connected;
+    compat_sockets[sockfd].connected_user = connected_user;
+
     struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
+    uint16_t port = ntohs(addr_in->sin_port);
+    uint8_t* s_addr = (uint8_t*)&addr_in->sin_addr;
+    nic_w5100_debug("compat: connect %d port %d\n", sockfd, port);
+    nic_connect(sockfd, s_addr, sizeof(addr_in->sin_addr), port);
+    return 0;
+}
 
-    nic_w5100_debug("compat: connect %d\n", sockfd);
+void compat_connected(int sockfd, int success)
+{
+    if (check_fd(sockfd))
+    {
+        return;
+    }
 
-    return -1;
+    compat_sockets[sockfd].connected(compat_sockets[sockfd].connected_user, success);
 }
 
 int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
@@ -222,18 +236,6 @@ int16_t recv(int sockfd, void *buf, uint16_t len, int flags)
         return -1;
     }
 
-    nic_w5100_debug("compat: recv %d\n", sockfd);
-
-    return 0;
-}
-
-int16_t recvfrom(int sockfd, void *buf, uint16_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen)
-{
-    if (check_fd(sockfd))
-    {
-        return -1;
-    }
-
     if (len > compat_sockets[sockfd].rx_size)
     {
         len = compat_sockets[sockfd].rx_size;
@@ -251,6 +253,16 @@ int16_t recvfrom(int sockfd, void *buf, uint16_t len, int flags, struct sockaddr
     return len;
 }
 
+int16_t recvfrom(int sockfd, void *buf, uint16_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen)
+{
+    if (check_fd(sockfd))
+    {
+        return -1;
+    }
+
+    return recv(sockfd, buf, len, flags);
+}
+
 int16_t send(int sockfd, const void *buf, uint16_t len, int flags)
 {
     if (check_fd(sockfd))
@@ -258,8 +270,8 @@ int16_t send(int sockfd, const void *buf, uint16_t len, int flags)
         return -1;
     }
 
-    uint16_t port = ntohs(compat_sockets[sockfd].bound_address.sin_port);
-    nic_w5100_debug("compat: send %d port %d\n", sockfd, ntohs(port));
+    nic_w5100_debug("compat: send %d\n", sockfd);
+    nic_send(sockfd, buf, len);
 
     return len;
 }
@@ -268,7 +280,7 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
 {
     if (check_fd(sockfd))
     {
-        return -1;
+        return 0;
     }
 
     struct sockaddr_in* dest_addr_in = (struct sockaddr_in*)dest_addr;
@@ -413,4 +425,20 @@ unsigned int compat_rx_data(int sockfd, unsigned int sz)
     nic_w5100_verbose("compat: placed %d bytes on socket %d, rx %d\n", sz, sockfd,
         compat_sockets[sockfd].rx_size);
     return sz;
+}
+
+void compat_proxy_term()
+{
+    nic_w5100_debug("compat: connections with proxy lost\n");
+    for (uint8_t i = 0; i < COMPAT_MAX_SOCKETS; i++)
+    {
+        if (!compat_sockets[i].used)
+        {
+            continue;
+        }
+
+        nic_w5100_debug("compat: socket %d closed\n", i);
+        nic_socket_close(i);
+        compat_sockets[i].used = 0;
+    }
 }

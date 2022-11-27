@@ -13,6 +13,7 @@ import { Long, serialize, deserialize } from 'bson';
 import openIcon from './icons/open.svg';
 import resetIcon from './icons/reset.svg';
 import magicIcon from './icons/magic.svg';
+import warningIcon from './icons/warning.svg';
 import playIcon from './icons/play.svg';
 import pauseIcon from './icons/pause.svg';
 import fullscreenIcon from './icons/fullscreen.svg';
@@ -135,8 +136,12 @@ class Emulator extends EventEmitter {
             });
         };
 
+        const self = this;
         this.wsProxy.onclose = function(event) {
-          console.log("Connection closed " + error.message);
+            self.emit('warning', "No connection with proxy");
+            worker.postMessage({
+                message: 'proxyTerm'
+            });
         };
 
         this.wsProxy.onmessage = function(event) {
@@ -150,11 +155,6 @@ class Emulator extends EventEmitter {
                 });
             });
         };
-
-        this.wsProxy.onerror = function(event) {
-          console.log("Error " + event);
-        };
-
     }
 
     start() {
@@ -579,6 +579,14 @@ window.JSSpeccy = (container, opts) => {
         }
     });
     tapeButton.disable();
+
+    const warningLabel = ui.toolbar.addLabel(warningIcon);
+    warningLabel.disable();
+    emu.on('warning', (e) => {
+        warningLabel.setText(e);
+        warningLabel.enable();
+    });
+
     emu.on('openedTapeFile', () => {
         tapeButton.enable();
     });

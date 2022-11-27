@@ -8,6 +8,7 @@ import bson
 import socket
 import select
 import threading
+import time
 
 
 class RequestError(Exception):
@@ -21,11 +22,14 @@ class ClientSocket(object):
     SOCKET_TYPE_TCP = 0
     SOCKET_TYPE_UDP = 1
 
-    def __init__(self, session: 'ClientSession', socket_id: int, socket_type: int, recv: Callable[[int, bytes], None],
-                 closed: Callable[[int], None]):
+    def __init__(self, session: 'ClientSession', socket_id: int, socket_type: int,
+                 recv: Callable[[int, bytes], None],
+                 closed: Callable[[int], None],
+                 connected: Callable[[int, int], None]):
         self.session = session
         self.socket_id = socket_id
         self.recv = recv
+        self.connected = connected
         self.closed = closed
         self.socket_type = socket_type
         self.local_port: int = 0
@@ -65,14 +69,20 @@ class ClientSocket(object):
         a.add_answer(RR(dn, QTYPE.A, rdata=A(host), ttl=600))
         self.recv(self.socket_id, bytes(a.pack()))
 
-    def define_udp(self):
-        self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+    def _do_bind(self):
         self.socket.bind(('', 0))
         self.local_port = self.socket.getsockname()[1]
         if self.bound_port == 0:
             self.bound_port = self.local_port
-
         ProxyApp.INSTANCE.register_socket(self.socket, self.poll_event)
+
+    def define_udp(self):
+        self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self._do_bind()
+
+    def define_tcp(self):
+        self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self._do_bind()
 
     def poll_event(self, event: int, s: threading.Semaphore):
         if not self.socket:
@@ -107,6 +117,42 @@ class ClientSocket(object):
         # self.session.log("> {0}".format(len(data)))
         self.socket.sendto(data, (str(target_host), port))
 
+    def send(self, data: bytes):
+        data = bytes(data)
+        if self.socket_type != ClientSocket.SOCKET_TYPE_TCP:
+            return
+
+        if self.socket is None:
+            return
+
+        # self.session.log("> {0}".format(len(data)))
+        self.socket.send(data)
+
+    def connect(self, address: bytes, port: int):
+        if self.socket_type != ClientSocket.SOCKET_TYPE_TCP:
+            return
+
+        if self.socket:
+            return
+
+        try:
+            target_host = ipaddress.ip_address(bytes(address))
+        except ValueError:
+            return
+
+        if self.socket is None:
+            if self.bound_port is None:
+                return
+            self.define_tcp()
+
+        # self.session.log("> {0}".format(len(data)))
+        try:
+            self.socket.connect((str(target_host), port))
+        except TimeoutError:
+            self.connected(self.socket_id, 0)
+        else:
+            self.connected(self.socket_id, 1)
+
     def close(self):
         if self.socket_id in self.session.allocated_sockets:
             del self.session.allocated_sockets[self.socket_id]
@@ -131,7 +177,9 @@ class ClientSession(object):
             "socket": self.socket,
             "socket_close": self.socket_close,
             "bind": self.bind,
-            "sendto": self.sendto
+            "sendto": self.sendto,
+            "send": self.send,
+            "connect": self.connect
         }
 
     def log(self, m: str):
@@ -145,6 +193,9 @@ class ClientSession(object):
 
     def client_closed(self, sockfd: int):
         self.call_client_method("closed", [sockfd])
+
+    def client_connected(self, sockfd: int, success: int):
+        self.call_client_method("connected", [sockfd, success])
 
     def close(self):
         socks = self.allocated_sockets
@@ -190,24 +241,36 @@ class ClientSession(object):
             raise RequestError("Too many sockets")
         if socket_type not in ClientSocket.ALLOWED_SOCKET_TYPES:
             raise RequestError("Not supported socket type")
-        new_socket = ClientSocket(self, socket_id, socket_type, self.client_recv, self.client_closed)
+        new_socket = ClientSocket(
+            self, socket_id, socket_type,
+            self.client_recv, self.client_closed, self.client_connected)
         if socket_id in self.allocated_sockets:
             raise RequestError("Socket ID already exists: {0}".format(socket_id))
         self.allocated_sockets[socket_id] = new_socket
 
     def bind(self, socket_id: int, port: int):
         if socket_id not in self.allocated_sockets:
-            raise RequestError("Socket is not opened")
+            return
         self.allocated_sockets[socket_id].bind(port)
 
     def sendto(self, socket_id: int, address: bytes, port: int, data: bytes):
         if socket_id not in self.allocated_sockets:
-            raise RequestError("Socket is not opened")
+            return
         self.allocated_sockets[socket_id].sendto(address, port, data)
+
+    def send(self, socket_id: int, data: bytes):
+        if socket_id not in self.allocated_sockets:
+            return
+        self.allocated_sockets[socket_id].send(data)
+
+    def connect(self, socket_id: int, address: bytes, port: int):
+        if socket_id not in self.allocated_sockets:
+            return
+        self.allocated_sockets[socket_id].connect(address, port)
 
     def socket_close(self, socket_id: int):
         if socket_id not in self.allocated_sockets:
-            raise RequestError("Socket is not opened")
+            return
         s = self.allocated_sockets[socket_id]
         s.close()
         try:
@@ -230,7 +293,7 @@ class ProxyApp(web.Application):
 
     def register_socket(self, sock: socket.socket, handler: Callable[[int, threading.Semaphore], None]):
         self.sockets[sock.fileno()] = handler
-        self.polling.register(sock.fileno())
+        self.polling.register(sock.fileno(), select.POLLIN | select.POLLHUP)
 
     def unregister_socket(self, sock: socket.socket):
         self.polling.unregister(sock.fileno())

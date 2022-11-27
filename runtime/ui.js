@@ -156,6 +156,11 @@ export class Toolbar {
         this.elem.appendChild(button.elem);
         return button;
     }
+    addLabel(icon) {
+        const label = new ToolbarLabel(icon);
+        this.elem.appendChild(label.elem);
+        return label;
+    }
     enterFullscreen() {
         this.elem.style.position = 'absolute';
     }
@@ -207,6 +212,37 @@ class ToolbarButton {
     disable() {
         this.elem.disabled = true;
         this.elem.firstChild.style.opacity = '0.5';
+    }
+    enable() {
+        this.elem.disabled = false;
+        this.elem.firstChild.style.opacity = '1';
+    }
+}
+
+class ToolbarLabel {
+    constructor(icon, opts) {
+        this.elem = document.createElement('span');
+        this.elem.style.margin = '2px';
+        this.elem.style.padding = '2px';
+        this.text = document.createElement('span');
+        this.text.style.fontFamily = 'system-ui';
+        this.text.style.fontSize = '12px';
+        this.text.style.padding = '4px';
+        this.text.style.color = '#a01f1f';
+        this.setIcon(icon);
+        this.elem.appendChild(this.text);
+    }
+    setText(text) {
+        this.text.textContent = text;
+    }
+    setIcon(icon) {
+        this.elem.innerHTML = icon;
+        this.elem.firstChild.style.height = '20px';
+        this.elem.firstChild.style.verticalAlign = 'middle';
+    }
+    disable() {
+        this.elem.disabled = true;
+        this.elem.firstChild.style.opacity = '0';
     }
     enable() {
         this.elem.disabled = false;

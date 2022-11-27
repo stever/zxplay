@@ -29,6 +29,8 @@ typedef struct fd_set {
   compat_socket_t fd_array[FD_SETSIZE];
 } fd_set;
 
+typedef void (*connected_cb_t)(void* user, int success);
+
 struct in_addr {
     unsigned long s_addr;  // load with inet_aton()
 };
@@ -58,7 +60,7 @@ int socket(int domain, int type, int protocol);
 int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);
 int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int listen(int sockfd, int backlog);
-int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen, connected_cb_t connected, void* connected_user);
 int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 int16_t recv(int sockfd, void *buf, uint16_t len, int flags);
 int16_t recvfrom(int sockfd, void *buf, uint16_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
@@ -68,5 +70,7 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
 extern uint8_t recv_buffer[4096];
 
 unsigned int compat_rx_data(int sockfd, unsigned int sz);
+void compat_proxy_term();
+void compat_connected(int sockfd, int success);
 
 #endif
