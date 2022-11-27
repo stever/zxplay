@@ -97,16 +97,7 @@ const loadCore = (baseUrl) => {
                 spectranetReset: () => spectranet.nic_w5100_reset(),
                 spectranetRead: (reg) => spectranet.nic_w5100_read(reg),
                 spectranetWrite: (reg, val) => spectranet.nic_w5100_write(reg, val),
-                updateSpectranetIO: () => spectranet.nic_w5100_io(),
-                debug_print: (s, len) => {
-                    console.log(String.fromCharCode.apply(String, new Uint8Array(memory.buffer, s, len)));
-                },
-                debug_print_hex: (s, len) => {
-                    console.log(toHexString(new Uint8Array(memory.buffer, s, len)));
-                },
-                debug_pc: (pc) => {
-                    console.log("PC = " + pc);
-                },
+                updateSpectranetIO: () => spectranet.nic_w5100_io()
             }
         };
 
@@ -304,6 +295,9 @@ onmessage = (e) => {
             break;
         case 'nmi':
             core.nonMaskableInterrupt();
+            break;
+        case 'dump':
+            core.dump();
             break;
         case 'loadMemory':
             loadMemoryPage(e.data.page, e.data.offset, e.data.data);

@@ -290,8 +290,6 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
     nic_w5100_debug("compat: sendto %d port %d\n", sockfd, port);
     nic_sendto(sockfd, addr, sizeof(dest_addr_in->sin_addr), port, buf, len);
 
-    /*
-
     if (port == 67)
     {
         // Special case for DHCP
@@ -347,7 +345,8 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
                     memcpy(response + 28, mac, 6); // replace mac
 
                     // place a response
-                    compat_rx_data(sockfd, response, sizeof(response));
+                    memcpy(recv_buffer, response, sizeof(response));
+                    compat_rx_data(sockfd, sizeof(response));
 
                     return len;
                 }
@@ -385,7 +384,8 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
                     memcpy(response + 28, mac, 6); // replace mac
 
                     // place a response
-                    compat_rx_data(sockfd, response, sizeof(response));
+                    memcpy(recv_buffer, response, sizeof(response));
+                    compat_rx_data(sockfd, sizeof(response));
 
                     break;
                 }
@@ -399,8 +399,6 @@ int16_t sendto(int sockfd, const void *buf, uint16_t len, int flags, const struc
 
         return len;
     }
-
-    */
 
     return len;
 }

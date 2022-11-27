@@ -253,39 +253,6 @@ let spectranetTrapPC:u16 = 0;
 @external("env", "updateSpectranetIO")
 declare function updateSpectranetIO(): void;
 
-@external("env", "debug_print")
-declare function debug_print(ptr: usize, len: i32): void;
-
-@external("env", "debug_pc")
-declare function debug_pc(pc: u16): void;
-
-@external("env", "debug_print_hex")
-declare function debug_print_hex(ptr: usize, len: i32): void;
-
-function debugPrint(s: string): void {
-    const b: ArrayBuffer = String.UTF8.encode(s);
-    const d = new DataView(b);
-    debug_print(d.dataStart, d.byteLength);
-}
-
-function debugPrintHex(h: DataView): void {
-    debug_print_hex(h.dataStart, h.byteLength);
-}
-
-export function dump(): void {
-    debug_pc(pc);
-    const b: Uint8Array = new Uint8Array(65536);
-    for (let i: u32 = 0; i < 16; i++)  {
-        const sectorOffset:u32 = i * 4096;
-        const pg: u16 = memoryPageReadMap[i];
-        const pageOffset:u32 = u32(pg) << 12;
-        for (let x: u32 = 0; x < 4096; x++) {
-            b[x + sectorOffset] = machineMemory[pageOffset + x];
-        }
-    }
-    debugPrintHex(new DataView(b.buffer));
-}
-
 @external("env", "spectranetReset")
 declare function spectranetReset(): void;
 
@@ -398,11 +365,11 @@ export function spectranetRefreshPages(): void {
     }
 }
 
-export function eraseSpectranetROM(from: u32, to: u32): void {
+export function eraseSpectranetROM(from: u32, to: u32, b: u8): void {
     // reset spectranet ROM to FF to emulate FLASH
     const offset: u32 = 88 * 0x1000;
     for (let i: u32 = from; i < to; i++) {
-        machineMemory[i + offset] = 0xFF;
+        machineMemory[i + offset] = b;
     }
 }
 
@@ -490,7 +457,7 @@ export function spectranetCheckPCPageOut(): void {
 /* ===================================================================================================================*/
 
 export function resetROM(): void {
-    eraseSpectranetROM(0, 32 * 0x1000);
+    eraseSpectranetROM(0, 32 * 0x1000, 0xFF);
 }
 
 // whether a trap on the next instruction will be honoured
@@ -791,11 +758,11 @@ function writeMem(addr:u16, val:u8):void {
                     break;
                 case 5:
                     if( addr == 0x555 && val == 0x10 ) {
-                        eraseSpectranetROM(0, 32 * 0x1000);
+                        eraseSpectranetROM(0, 32 * 0x1000, 0xFF);
                         spectranetFlashState = 0;
                         return;
                     } else if( val == 0x30 ) {
-                        eraseSpectranetROM((spectranetFlashB / 4) * 0x4000, 0x4000);
+                        eraseSpectranetROM((spectranetFlashB / 4) * 0x4000, 0x4000, 0xFF);
                         spectranetFlashState = 0;
                         return;
                     }
