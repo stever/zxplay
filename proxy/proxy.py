@@ -33,6 +33,7 @@ class ClientSocket(object):
         self.local_port: int = 0
         self.bound_port: Optional[int] = None
         self.socket: Optional[socket.socket] = None
+        self.connecting = False
 
         self.session.log("New {0} socket: {1}".format(
             "UDP" if socket_type == ClientSocket.SOCKET_TYPE_UDP else "TCP", socket_id))
@@ -49,15 +50,31 @@ class ClientSocket(object):
 
     def define_udp(self):
         self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.socket.setblocking(False)
         self._do_bind()
 
     def define_tcp(self):
         self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self.socket.setblocking(False)
         self._do_bind()
+
+    def unregister(self):
+        ProxyApp.INSTANCE.unregister_socket(self.socket)
+
+    def unregister_write(self):
+        ProxyApp.INSTANCE.unregister_write(self.socket)
 
     def poll_event(self, event: int, s: threading.Semaphore):
         if not self.socket:
             return
+        if event & select.POLLOUT:
+            self.unregister_write()
+            if self.connecting:
+                if event & select.POLLERR:
+                    self.connected(self.socket_id, 0)
+                else:
+                    self.connected(self.socket_id, 1)
+                self.connecting = False
         if event & select.POLLIN:
             data = self.socket.recv(2048)
             self.recv(self.socket_id, data)
@@ -106,6 +123,9 @@ class ClientSocket(object):
         if self.socket:
             return
 
+        if self.connecting:
+            return
+
         if port == 53:
             # make sure DNS always goes to google
             target_host = '8.8.8.8'
@@ -121,18 +141,19 @@ class ClientSocket(object):
             self.define_tcp()
 
         # self.session.log("> {0}".format(len(data)))
-        try:
-            self.socket.connect((str(target_host), port))
-        except Exception:
-            self.connected(self.socket_id, 0)
-        else:
+        conn = self.socket.connect_ex((str(target_host), port))
+        if conn == 0:
             self.connected(self.socket_id, 1)
+        elif conn == socket.EAGAIN or conn == socket.EWOULDBLOCK or conn == 115:
+            self.connecting = True
+        else:
+            self.connected(self.socket_id, 0)
 
     def close(self):
         if self.socket_id in self.session.allocated_sockets:
             del self.session.allocated_sockets[self.socket_id]
         if self.socket:
-            ProxyApp.INSTANCE.unregister_socket(self.socket)
+            self.unregister()
             self.socket.close()
             self.socket = None
         self.session.log("Socket {0} closed".format(self.socket_id))
@@ -268,7 +289,10 @@ class ProxyApp(web.Application):
 
     def register_socket(self, sock: socket.socket, handler: Callable[[int, threading.Semaphore], None]):
         self.sockets[sock.fileno()] = handler
-        self.polling.register(sock.fileno(), select.POLLIN | select.POLLHUP)
+        self.polling.register(sock.fileno(), select.POLLIN | select.POLLHUP | select.POLLERR | select.POLLOUT)
+
+    def unregister_write(self, sock: socket.socket):
+        self.polling.modify(sock.fileno(), select.POLLIN | select.POLLHUP | select.POLLERR)
 
     def unregister_socket(self, sock: socket.socket):
         self.polling.unregister(sock.fileno())
