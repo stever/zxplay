@@ -67,20 +67,28 @@ class ClientSocket(object):
     def poll_event(self, event: int, s: threading.Semaphore):
         if not self.socket:
             return
+        if event & select.POLLERR:
+            if self.connecting:
+                self.connected(self.socket_id, 0)
+                self.session.log("Socket {0} connect failed".format(self.socket_id))
+                self.connecting = False
         if event & select.POLLOUT:
             self.unregister_write()
             if self.connecting:
-                if event & select.POLLERR:
-                    self.connected(self.socket_id, 0)
-                else:
-                    self.connected(self.socket_id, 1)
+                self.connected(self.socket_id, 1)
+                self.session.log("Socket {0} connected".format(self.socket_id))
                 self.connecting = False
-        if event & select.POLLIN:
-            data = self.socket.recv(2048)
-            self.recv(self.socket_id, data)
         if event & select.POLLHUP:
-            self.closed(self.socket_id)
-            self.close()
+            if self.socket:
+                self.closed(self.socket_id)
+                self.close()
+        if event & select.POLLIN:
+            if self.socket:
+                try:
+                    data = self.socket.recv(2048)
+                    self.recv(self.socket_id, data)
+                except Exception as e:
+                    self.session.log("Failure doing recv: {0} on socket {1}".format(str(e), self.socket_id))
         s.release()
 
     def sendto(self, address: bytes, port: int, data: bytes):
@@ -144,10 +152,12 @@ class ClientSocket(object):
         conn = self.socket.connect_ex((str(target_host), port))
         if conn == 0:
             self.connected(self.socket_id, 1)
+            self.session.log("Socket {0} connected")
         elif conn == socket.EAGAIN or conn == socket.EWOULDBLOCK or conn == 115:
             self.connecting = True
         else:
             self.connected(self.socket_id, 0)
+            self.session.log("Socket {0} connect failed".format(self.socket_id))
 
     def close(self):
         if self.socket_id in self.session.allocated_sockets:
@@ -156,8 +166,7 @@ class ClientSocket(object):
             self.unregister()
             self.socket.close()
             self.socket = None
-        self.session.log("Socket {0} closed".format(self.socket_id))
-        self.session = None
+            self.session.log("Socket {0} closed".format(self.socket_id))
 
 
 class ClientSession(object):
