@@ -153,7 +153,7 @@ class ClientSocket(object):
         if conn == 0:
             self.connected(self.socket_id, 1)
             self.session.log("Socket {0} connected")
-        elif conn == socket.EAGAIN or conn == socket.EWOULDBLOCK or conn == 115:
+        elif conn == socket.EAGAIN or conn == socket.EWOULDBLOCK or conn == 115 or conn == 36:
             self.connecting = True
         else:
             self.connected(self.socket_id, 0)
