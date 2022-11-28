@@ -15,6 +15,7 @@ import resetIcon from './icons/reset.svg';
 import magicIcon from './icons/magic.svg';
 import warningIcon from './icons/warning.svg';
 import playIcon from './icons/play.svg';
+import serverIcon from './icons/server.svg';
 import pauseIcon from './icons/pause.svg';
 import fullscreenIcon from './icons/fullscreen.svg';
 import exitFullscreenIcon from './icons/exitfullscreen.svg';
@@ -54,7 +55,11 @@ class Emulator extends EventEmitter {
                     this.loadRoms().then(() => {
                         this.setMachine(opts.machine || 128);
                         this.setTapeTraps(this.tapeTrapsEnabled);
-                        if (opts.openUrl) {
+                        if (opts.tnfs) {
+                            this.loadTNFS(opts.tnfs).then(() => {
+                                if (opts.autoStart) this.start();
+                            });
+                        } else if (opts.openUrl) {
                             this.openUrlList(opts.openUrl).catch(err => {
                                 alert(err);
                             }).then(() => {
@@ -180,15 +185,19 @@ class Emulator extends EventEmitter {
         }
     }
 
-    async loadRom(url, page, offset = 0) {
-        const response = await fetch(new URL(url, scriptUrl));
-        const data = new Uint8Array(await response.arrayBuffer());
+    async loadRomData(data, page, offset = 0) {
         this.worker.postMessage({
             message: 'loadMemory',
             data,
             page: page,
             offset: offset
         });
+    }
+
+    async loadRom(url, page, offset = 0) {
+        const response = await fetch(new URL(url, scriptUrl));
+        const data = new Uint8Array(await response.arrayBuffer());
+        this.loadRomData(data, page, offset);
     }
 
     async loadRoms() {
@@ -200,6 +209,17 @@ class Emulator extends EventEmitter {
         await this.loadRom('roms/spectranet.rom', 88);
     }
 
+    async loadTNFS(resource) {
+        console.log("Mounting TNFS to: " + resource);
+        const blob = new Uint8Array([0x1C, 0x00, 0xFF, 0x01, 0x16, 0x00, 0x81, 0x01, 0x00]);
+        await this.loadRomData(blob, 88 + 31, 0);
+        const v = new Uint8Array(resource.length + 1);
+        for (let i = 0; i < resource.length; i++) {
+            v[i] = resource.charCodeAt(i);
+        }
+        v[resource.length] = 0;
+        await this.loadRomData(v, 88 + 31, 9);
+    }
 
     runFrame() {
         this.isExecutingFrame = true;
@@ -426,6 +446,7 @@ window.JSSpeccy = (container, opts) => {
     const emu = new Emulator(canvas, {
         machine: opts.machine || 128,
         autoStart: opts.autoStart || false,
+        tnfs: opts.tnfs,
         autoLoadTapes: opts.autoLoadTapes || false,
         tapeAutoLoadMode: opts.tapeAutoLoadMode || 'default',
         openUrl: opts.openUrl,
@@ -554,6 +575,12 @@ window.JSSpeccy = (container, opts) => {
     });
     ui.toolbar.addButton(magicIcon, {label: 'Magic'}, () => {
         emu.nmi();
+    });
+    ui.toolbar.addButton(serverIcon, {label: 'Connect to TNFS'}, () => {
+        const s = prompt("Please enter TNFS server to connect to");
+        if (!s)
+            return;
+        window.location.search = "?tnfs=" + s;
     });
     emu.on('pause', () => {
         pauseButton.setIcon(playIcon);

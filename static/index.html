@@ -14,7 +14,7 @@
             }
         </style>
     </head>
-    <body onload="emu = JSSpeccy(document.getElementById('jsspeccy'), {zoom: 2, sandbox: false, machine: 49, autoStart: true})">
+    <body onload="emu = JSSpeccy(document.getElementById('jsspeccy'), {zoom: 2, sandbox: false, machine: 49, autoStart: true, tnfs: new URLSearchParams(window.location.search).get('tnfs')})">
         <div id="jsspeccy"></div>
     </body>
 </html>
