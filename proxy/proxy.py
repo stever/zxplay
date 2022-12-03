@@ -1,5 +1,5 @@
 import tornado.ioloop
-from tornado import ioloop, web, websocket
+from tornado import ioloop, web, websocket, httpserver
 from typing import Dict, Callable, Optional
 import ipaddress
 
@@ -7,7 +7,8 @@ import bson
 import socket
 import select
 import threading
-
+import argparse
+import os
 
 class RequestError(Exception):
     def __init__(self, msg):
@@ -289,9 +290,10 @@ class ProxyApp(web.Application):
     INSTANCE: 'ProxyApp' = None
     IOLOOP: tornado.ioloop.IOLoop = None
 
-    def __init__(self):
+    def __init__(self, local: bool):
         super().__init__([(r"/", ProxyHandler)])
         ProxyApp.INSTANCE = self
+        self.local = local
         self.active = True
         self.sockets: Dict[int, Callable[[int, threading.Semaphore], None]] = {}
         self.polling = select.poll()
@@ -328,6 +330,19 @@ class ProxyHandler(websocket.WebSocketHandler):
     def write_serialized_message(self, payload: bytes):
         self.write_message(payload, True)
 
+    def set_default_headers(self) -> None:
+        if self.application.local:
+            self.set_header("Access-Control-Allow-Origin", "*")
+        else:
+            self.set_header("Access-Control-Allow-Origin", "https://speccytools.org/emu")
+
+        self.set_header("Access-Control-Allow-Headers", "x-requested-with")
+        self.set_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+
+    def options(self, *args):
+        self.set_status(204)
+        self.finish()
+
     def check_origin(self, origin):
         return True
 
@@ -342,11 +357,29 @@ class ProxyHandler(websocket.WebSocketHandler):
         self.client_session.log("Session closed")
 
 
-app = ProxyApp()
-
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    # Adding optional argument
+    parser.add_argument("--local", action="store_true", help="Run locally")
+
+    # Read arguments from command line
+    args = parser.parse_args()
+
+    app = ProxyApp(args.local)
+
     x = threading.Thread(target=app.poll_loop, args=())
     ProxyApp.IOLOOP = ioloop.IOLoop.current()
-    app.listen(5000)
+
+    if app.local:
+        http_server = httpserver.HTTPServer(app)
+        http_server.listen(5000)
+    else:
+        http_server = httpserver.HTTPServer(app, ssl_options={
+            "certfile": os.environ["PROXY_CERTFILE"],
+            "keyfile": os.environ["PROXY_PRIVFILE"],
+        })
+        http_server.listen(443)
+
     x.start()
     ProxyApp.IOLOOP.start()

@@ -131,7 +131,7 @@ class Emulator extends EventEmitter {
         };
 
         const worker = this.worker;
-        this.wsProxy = new WebSocket('ws://localhost:5000');
+        this.wsProxy = new WebSocket('wss://proxy.speccytools.org');
 
         this.wsProxy.onopen = function() {
             console.log("Connected to WS proxy.");
