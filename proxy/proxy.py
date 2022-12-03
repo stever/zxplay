@@ -326,6 +326,7 @@ class ProxyHandler(websocket.WebSocketHandler):
         super().__init__(application, request, **kwargs)
         self.client_session = ClientSession(self.write_serialized_message, application.NEXT_SESSION_ID)
         application.NEXT_SESSION_ID += 1
+        self.connection_closed = False
 
     def write_serialized_message(self, payload: bytes):
         self.write_message(payload, True)
@@ -349,7 +350,13 @@ class ProxyHandler(websocket.WebSocketHandler):
     def open(self):
         self.client_session.log("A new session opened")
 
+    def on_connection_close(self):
+        # The client has given up and gone home.
+        self.connection_closed = True
+
     def on_message(self, message):
+        if self.connection_closed:
+            return
         self.client_session.recv(message)
 
     def on_close(self):
