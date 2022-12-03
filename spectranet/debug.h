@@ -4,7 +4,7 @@
 #define nic_w5100_verbose(...)
 
 /* Define this to spew debugging info to stdout */
-#define W5100_DEBUG 1
+#define W5100_DEBUG 0
 
 #if W5100_DEBUG
 #include <stdio.h>
