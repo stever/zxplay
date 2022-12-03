@@ -90,6 +90,7 @@ class ClientSocket(object):
                     self.recv(self.socket_id, data)
                 except Exception as e:
                     self.session.log("Failure doing recv: {0} on socket {1}".format(str(e), self.socket_id))
+                    self.close()
         s.release()
 
     def sendto(self, address: bytes, port: int, data: bytes):
