@@ -36,6 +36,7 @@ class Emulator extends EventEmitter {
         this.isInitiallyPaused = (!opts.autoStart);
         this.autoLoadTapes = opts.autoLoadTapes || false;
         this.tapeAutoLoadMode = opts.tapeAutoLoadMode || 'default';  // or usr0
+        this.proxyURL = opts.proxyURL || 'ws://localhost:5000';
         this.tapeIsPlaying = false;
         this.tapeTrapsEnabled = ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true;
 
@@ -131,7 +132,7 @@ class Emulator extends EventEmitter {
         };
 
         const worker = this.worker;
-        this.wsProxy = new WebSocket('wss://proxy.speccytools.org');
+        this.wsProxy = new WebSocket(this.proxyURL);
 
         this.wsProxy.onopen = function() {
             console.log("Connected to WS proxy.");
