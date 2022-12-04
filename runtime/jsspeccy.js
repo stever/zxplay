@@ -448,6 +448,7 @@ window.JSSpeccy = (container, opts) => {
         machine: opts.machine || 128,
         autoStart: opts.autoStart || false,
         tnfs: opts.tnfs,
+        proxyURL: opts.proxyURL,
         autoLoadTapes: opts.autoLoadTapes || false,
         tapeAutoLoadMode: opts.tapeAutoLoadMode || 'default',
         openUrl: opts.openUrl,
