@@ -1,5 +1,6 @@
 import tornado.ioloop
 from tornado import ioloop, web, websocket, httpserver
+from tornado.options import define, options
 from typing import Dict, Callable, Optional, Coroutine, Any
 import ipaddress
 
@@ -9,6 +10,10 @@ import select
 import threading
 import argparse
 import os
+import logging
+
+define("local", type=bool, default=False, help="Local setup")
+access_log = logging.getLogger("tornado.access")
 
 
 class RequestError(Exception):
@@ -72,7 +77,7 @@ class ClientSocket(object):
         if event & select.POLLERR:
             if self.connecting:
                 self.connected(self.socket_id, 0)
-                self.session.log("Socket {0} connect failed".format(self.socket_id))
+                self.session.error("Socket {0} connect failed".format(self.socket_id))
                 self.connecting = False
         if event & select.POLLOUT:
             self.unregister_write()
@@ -97,6 +102,7 @@ class ClientSocket(object):
     def sendto(self, address: bytes, port: int, data: bytes):
         data = bytes(data)
         if self.socket_type != ClientSocket.SOCKET_TYPE_UDP:
+            self.session.error("sendto: not a udp on socket {0}".format(self.socket_id))
             return
 
         if port == 53:
@@ -105,11 +111,13 @@ class ClientSocket(object):
         else:
             try:
                 target_host = ipaddress.ip_address(bytes(address))
-            except ValueError:
+            except Exception as e:
+                self.session.error("sendto: {0} on socket {1}".format(str(e), self.socket_id))
                 return
 
         if self.socket is None:
             if self.bound_port is None:
+                self.session.error("sendto: not bound on socket {0}".format(self.socket_id))
                 return
             self.define_udp()
 
@@ -119,9 +127,11 @@ class ClientSocket(object):
     def send(self, data: bytes):
         data = bytes(data)
         if self.socket_type != ClientSocket.SOCKET_TYPE_TCP:
+            self.session.error("send: not a tcp on socket {0}".format(self.socket_id))
             return
 
         if self.socket is None:
+            self.session.error("unknown socket on socket {0}".format(self.socket_id))
             return
 
         # self.session.log("> {0}".format(len(data)))
@@ -129,12 +139,15 @@ class ClientSocket(object):
 
     def connect(self, address: bytes, port: int):
         if self.socket_type != ClientSocket.SOCKET_TYPE_TCP:
+            self.session.error("connect: not a tcp on socket {0}".format(self.socket_id))
             return
 
         if self.socket:
+            self.session.error("unknown socket on socket {0}".format(self.socket_id))
             return
 
         if self.connecting:
+            self.session.error("connecting already on socket {0}".format(self.socket_id))
             return
 
         if port == 53:
@@ -143,11 +156,13 @@ class ClientSocket(object):
         else:
             try:
                 target_host = ipaddress.ip_address(bytes(address))
-            except ValueError:
+            except Exception as e:
+                self.session.error("connect: {0} on socket {1}".format(str(e), self.socket_id))
                 return
 
         if self.socket is None:
             if self.bound_port is None:
+                self.session.error("sendto: not bound on socket {0}".format(self.socket_id))
                 return
             self.define_tcp()
 
@@ -191,7 +206,10 @@ class ClientSession(object):
         }
 
     def log(self, m: str):
-        print("{0} | {1}".format(self.session_id, m))
+        access_log.info("{0} | {1}".format(self.session_id, m))
+
+    def error(self, m: str):
+        access_log.error("{0} | {1}".format(self.session_id, m))
 
     def call_client_method(self, method, args):
         ProxyApp.IOLOOP.add_callback(self.writer, bson.dumps({"m": method, "a": args}))
@@ -292,10 +310,9 @@ class ProxyApp(web.Application):
     INSTANCE: 'ProxyApp' = None
     IOLOOP: tornado.ioloop.IOLoop = None
 
-    def __init__(self, local: bool):
+    def __init__(self):
         super().__init__([(r"/", ProxyHandler)])
         ProxyApp.INSTANCE = self
-        self.local = local
         self.active = True
         self.sockets: Dict[int, Callable[[int, threading.Semaphore], None]] = {}
         self.polling = select.poll()
@@ -338,7 +355,7 @@ class ProxyHandler(websocket.WebSocketHandler):
             self.close()
 
     def set_default_headers(self) -> None:
-        if self.application.local:
+        if options.local:
             self.set_header("Access-Control-Allow-Origin", "*")
         else:
             self.set_header("Access-Control-Allow-Origin", "https://speccytools.org/emu")
@@ -357,6 +374,7 @@ class ProxyHandler(websocket.WebSocketHandler):
         self.client_session.log("A new session opened")
 
     def on_connection_close(self):
+        super().on_connection_close()
         # The client has given up and gone home.
         self.connection_closed = True
 
@@ -373,20 +391,13 @@ class ProxyHandler(websocket.WebSocketHandler):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    tornado.options.parse_command_line()
 
-    # Adding optional argument
-    parser.add_argument("--local", action="store_true", help="Run locally")
-
-    # Read arguments from command line
-    args = parser.parse_args()
-
-    app = ProxyApp(args.local)
-
+    app = ProxyApp()
     x = threading.Thread(target=app.poll_loop, args=())
     ProxyApp.IOLOOP = ioloop.IOLoop.current()
 
-    if app.local:
+    if options.local:
         http_server = httpserver.HTTPServer(app)
         http_server.listen(5000)
     else:
