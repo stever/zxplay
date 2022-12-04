@@ -1,6 +1,6 @@
 import tornado.ioloop
 from tornado import ioloop, web, websocket, httpserver
-from typing import Dict, Callable, Optional
+from typing import Dict, Callable, Optional, Coroutine, Any
 import ipaddress
 
 import bson
@@ -9,6 +9,7 @@ import select
 import threading
 import argparse
 import os
+
 
 class RequestError(Exception):
     def __init__(self, msg):
@@ -174,7 +175,7 @@ class ClientSocket(object):
 class ClientSession(object):
     MAX_SOCKETS = 4
 
-    def __init__(self, writer: Callable[[bytes], None], session_id: int):
+    def __init__(self, writer: Callable[[bytes], Coroutine[Any, Any, None]], session_id: int):
         self.allocated_sockets: Dict[int, ClientSocket] = {}
         self.writer = writer
         self.session_id = session_id
@@ -193,7 +194,7 @@ class ClientSession(object):
         print("{0} | {1}".format(self.session_id, m))
 
     def call_client_method(self, method, args):
-        self.writer(bson.dumps({"m": method, "a": args}))
+        ProxyApp.IOLOOP.add_callback(self.writer, bson.dumps({"m": method, "a": args}))
 
     def client_recv(self, sockfd: int, data: bytes):
         self.call_client_method("recv", [sockfd, data])
@@ -325,12 +326,16 @@ class ProxyHandler(websocket.WebSocketHandler):
 
     def __init__(self, application: ProxyApp, request, **kwargs):
         super().__init__(application, request, **kwargs)
+        self.application: ProxyApp = application
         self.client_session = ClientSession(self.write_serialized_message, application.NEXT_SESSION_ID)
         application.NEXT_SESSION_ID += 1
         self.connection_closed = False
 
-    def write_serialized_message(self, payload: bytes):
-        self.write_message(payload, True)
+    async def write_serialized_message(self, payload: bytes):
+        try:
+            await self.write_message(payload, True)
+        except websocket.WebSocketClosedError:
+            self.close()
 
     def set_default_headers(self) -> None:
         if self.application.local:
@@ -361,8 +366,10 @@ class ProxyHandler(websocket.WebSocketHandler):
         self.client_session.recv(message)
 
     def on_close(self):
-        self.client_session.close()
-        self.client_session.log("Session closed")
+        if self.client_session:
+            self.client_session.close()
+            self.client_session.log("Session closed")
+            self.client_session = None
 
 
 if __name__ == "__main__":
