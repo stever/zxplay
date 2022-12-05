@@ -7,8 +7,6 @@ import ipaddress
 import bson
 import socket
 import select
-import threading
-import argparse
 import os
 import logging
 
@@ -28,9 +26,9 @@ class ClientSocket(object):
     SOCKET_TYPE_UDP = 1
 
     def __init__(self, session: 'ClientSession', socket_id: int, socket_type: int,
-                 recv: Callable[[int, bytes], None],
-                 closed: Callable[[int], None],
-                 connected: Callable[[int, int], None]):
+                 recv: Callable[[int, bytes], Coroutine],
+                 closed: Callable[[int], Coroutine],
+                 connected: Callable[[int, int], Coroutine]):
         self.session = session
         self.socket_id = socket_id
         self.recv = recv
@@ -45,7 +43,7 @@ class ClientSocket(object):
         self.session.log("New {0} socket: {1}".format(
             "UDP" if socket_type == ClientSocket.SOCKET_TYPE_UDP else "TCP", socket_id))
 
-    def bind(self, port: int):
+    async def bind(self, port: int):
         self.bound_port = port
 
     def _do_bind(self):
@@ -71,35 +69,34 @@ class ClientSocket(object):
     def unregister_write(self):
         ProxyApp.INSTANCE.unregister_write(self.socket)
 
-    def poll_event(self, event: int, s: threading.Semaphore):
+    async def poll_event(self, event: int):
         if not self.socket:
             return
         if event & select.POLLERR:
             if self.connecting:
-                self.connected(self.socket_id, 0)
+                await self.connected(self.socket_id, 0)
                 self.session.error("Socket {0} connect failed".format(self.socket_id))
                 self.connecting = False
         if event & select.POLLOUT:
             self.unregister_write()
             if self.connecting:
-                self.connected(self.socket_id, 1)
+                await self.connected(self.socket_id, 1)
                 self.session.log("Socket {0} connected".format(self.socket_id))
                 self.connecting = False
-        if event & select.POLLHUP:
-            if self.socket:
-                self.closed(self.socket_id)
-                self.close()
         if event & select.POLLIN:
             if self.socket:
                 try:
                     data = self.socket.recv(2048)
-                    self.recv(self.socket_id, data)
+                    await self.recv(self.socket_id, data)
                 except Exception as e:
-                    self.session.log("Failure doing recv: {0} on socket {1}".format(str(e), self.socket_id))
+                    self.session.error("Failure doing recv: {0} on socket {1}".format(str(e), self.socket_id))
                     self.close()
-        s.release()
+        if event & select.POLLHUP:
+            await self.closed(self.socket_id)
+            if self.socket:
+                self.close()
 
-    def sendto(self, address: bytes, port: int, data: bytes):
+    async def sendto(self, address: bytes, port: int, data: bytes):
         data = bytes(data)
         if self.socket_type != ClientSocket.SOCKET_TYPE_UDP:
             self.session.error("sendto: not a udp on socket {0}".format(self.socket_id))
@@ -124,7 +121,7 @@ class ClientSocket(object):
         # self.session.log("> {0}".format(len(data)))
         self.socket.sendto(data, (str(target_host), port))
 
-    def send(self, data: bytes):
+    async def send(self, data: bytes):
         data = bytes(data)
         if self.socket_type != ClientSocket.SOCKET_TYPE_TCP:
             self.session.error("send: not a tcp on socket {0}".format(self.socket_id))
@@ -137,7 +134,7 @@ class ClientSocket(object):
         # self.session.log("> {0}".format(len(data)))
         self.socket.send(data)
 
-    def connect(self, address: bytes, port: int):
+    async def connect(self, address: bytes, port: int):
         if self.socket_type != ClientSocket.SOCKET_TYPE_TCP:
             self.session.error("connect: not a tcp on socket {0}".format(self.socket_id))
             return
@@ -169,12 +166,12 @@ class ClientSocket(object):
         # self.session.log("> {0}".format(len(data)))
         conn = self.socket.connect_ex((str(target_host), port))
         if conn == 0:
-            self.connected(self.socket_id, 1)
+            await self.connected(self.socket_id, 1)
             self.session.log("Socket {0} connected")
         elif conn == socket.EAGAIN or conn == socket.EWOULDBLOCK or conn == 115 or conn == 36:
             self.connecting = True
         else:
-            self.connected(self.socket_id, 0)
+            await self.connected(self.socket_id, 0)
             self.session.log("Socket {0} connect failed".format(self.socket_id))
 
     def close(self):
@@ -211,17 +208,17 @@ class ClientSession(object):
     def error(self, m: str):
         access_log.error("{0} | {1}".format(self.session_id, m))
 
-    def call_client_method(self, method, args):
-        ProxyApp.IOLOOP.add_callback(self.writer, bson.dumps({"m": method, "a": args}))
+    async def call_client_method(self, method, args):
+        await self.writer(bson.dumps({"m": method, "a": args}))
 
-    def client_recv(self, sockfd: int, data: bytes):
-        self.call_client_method("recv", [sockfd, data])
+    async def client_recv(self, sockfd: int, data: bytes):
+        await self.call_client_method("recv", [sockfd, data])
 
-    def client_closed(self, sockfd: int):
-        self.call_client_method("closed", [sockfd])
+    async def client_closed(self, sockfd: int):
+        await self.call_client_method("closed", [sockfd])
 
-    def client_connected(self, sockfd: int, success: int):
-        self.call_client_method("connected", [sockfd, success])
+    async def client_connected(self, sockfd: int, success: int):
+        await self.call_client_method("connected", [sockfd, success])
 
     def close(self):
         socks = self.allocated_sockets
@@ -229,7 +226,7 @@ class ClientSession(object):
         for k, v in socks.items():
             v.close()
 
-    def recv(self, msg: bytes):
+    async def recv(self, msg: bytes):
         # self.log("< {0}".format(len(msg)))
         try:
             decoded = bson.loads(msg)
@@ -254,7 +251,7 @@ class ClientSession(object):
             self.log("Unknown method: {0}".format(m))
             return
         try:
-            self.methods[m](*a)
+            await self.methods[m](*a)
         except RequestError as e:
             self.log("Error while processing a request: {0}".format(e.msg))
             return
@@ -262,7 +259,7 @@ class ClientSession(object):
             self.log("Cannot process a request: {0}, type error".format(m))
             return
 
-    def socket(self, socket_id: int, socket_type: int):
+    async def socket(self, socket_id: int, socket_type: int):
         if len(self.allocated_sockets) >= ClientSession.MAX_SOCKETS:
             raise RequestError("Too many sockets")
         if socket_type not in ClientSocket.ALLOWED_SOCKET_TYPES:
@@ -274,27 +271,27 @@ class ClientSession(object):
             raise RequestError("Socket ID already exists: {0}".format(socket_id))
         self.allocated_sockets[socket_id] = new_socket
 
-    def bind(self, socket_id: int, port: int):
+    async def bind(self, socket_id: int, port: int):
         if socket_id not in self.allocated_sockets:
             return
-        self.allocated_sockets[socket_id].bind(port)
+        await self.allocated_sockets[socket_id].bind(port)
 
-    def sendto(self, socket_id: int, address: bytes, port: int, data: bytes):
+    async def sendto(self, socket_id: int, address: bytes, port: int, data: bytes):
         if socket_id not in self.allocated_sockets:
             return
-        self.allocated_sockets[socket_id].sendto(address, port, data)
+        await self.allocated_sockets[socket_id].sendto(address, port, data)
 
-    def send(self, socket_id: int, data: bytes):
+    async def send(self, socket_id: int, data: bytes):
         if socket_id not in self.allocated_sockets:
             return
-        self.allocated_sockets[socket_id].send(data)
+        await self.allocated_sockets[socket_id].send(data)
 
-    def connect(self, socket_id: int, address: bytes, port: int):
+    async def connect(self, socket_id: int, address: bytes, port: int):
         if socket_id not in self.allocated_sockets:
             return
-        self.allocated_sockets[socket_id].connect(address, port)
+        await self.allocated_sockets[socket_id].connect(address, port)
 
-    def socket_close(self, socket_id: int):
+    async def socket_close(self, socket_id: int):
         if socket_id not in self.allocated_sockets:
             return
         s = self.allocated_sockets[socket_id]
@@ -313,11 +310,12 @@ class ProxyApp(web.Application):
     def __init__(self):
         super().__init__([(r"/", ProxyHandler)])
         ProxyApp.INSTANCE = self
-        self.active = True
-        self.sockets: Dict[int, Callable[[int, threading.Semaphore], None]] = {}
+        self.sockets: Dict[int, Callable[[int], Coroutine]] = {}
         self.polling = select.poll()
+        self.cb = tornado.ioloop.PeriodicCallback(self.poll_loop, 10.0)
+        self.cb.start()
 
-    def register_socket(self, sock: socket.socket, handler: Callable[[int, threading.Semaphore], None]):
+    def register_socket(self, sock: socket.socket, handler: Callable[[int], Coroutine]):
         self.sockets[sock.fileno()] = handler
         self.polling.register(sock.fileno(), select.POLLIN | select.POLLHUP | select.POLLERR | select.POLLOUT)
 
@@ -328,14 +326,11 @@ class ProxyApp(web.Application):
         self.polling.unregister(sock.fileno())
         del self.sockets[sock.fileno()]
 
-    def poll_loop(self):
-        while self.active:
-            for fd, event in self.polling.poll(500):
-                handler = self.sockets.get(fd)
-                if handler:
-                    s = threading.Semaphore(value=0)
-                    ProxyApp.IOLOOP.add_callback(handler, event, s)
-                    s.acquire()
+    async def poll_loop(self):
+        for fd, event in self.polling.poll(0):
+            handler = self.sockets.get(fd)
+            if handler:
+                await handler(event)
 
 
 # noinspection PyAbstractClass
@@ -378,10 +373,10 @@ class ProxyHandler(websocket.WebSocketHandler):
         # The client has given up and gone home.
         self.connection_closed = True
 
-    def on_message(self, message):
+    async def on_message(self, message):
         if self.connection_closed:
             return
-        self.client_session.recv(message)
+        await self.client_session.recv(message)
 
     def on_close(self):
         if self.client_session:
@@ -394,7 +389,6 @@ if __name__ == "__main__":
     tornado.options.parse_command_line()
 
     app = ProxyApp()
-    x = threading.Thread(target=app.poll_loop, args=())
     ProxyApp.IOLOOP = ioloop.IOLoop.current()
 
     if options.local:
@@ -407,5 +401,4 @@ if __name__ == "__main__":
         })
         http_server.listen(443)
 
-    x.start()
     ProxyApp.IOLOOP.start()
