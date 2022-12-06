@@ -11,6 +11,7 @@ import os
 import logging
 
 define("local", type=bool, default=False, help="Local setup")
+define("origin", type=str, default="https://speccytools.org/emu", help="Access-Control-Allow-Origin to allow")
 access_log = logging.getLogger("tornado.access")
 
 
@@ -312,7 +313,7 @@ class ProxyApp(web.Application):
         ProxyApp.INSTANCE = self
         self.sockets: Dict[int, Callable[[int], Coroutine]] = {}
         self.polling = select.poll()
-        self.cb = tornado.ioloop.PeriodicCallback(self.poll_loop, 10.0)
+        self.cb = tornado.ioloop.PeriodicCallback(self.poll_loop, 5.0)
         self.cb.start()
 
     def register_socket(self, sock: socket.socket, handler: Callable[[int], Coroutine]):
@@ -353,7 +354,7 @@ class ProxyHandler(websocket.WebSocketHandler):
         if options.local:
             self.set_header("Access-Control-Allow-Origin", "*")
         else:
-            self.set_header("Access-Control-Allow-Origin", "https://speccytools.org/emu")
+            self.set_header("Access-Control-Allow-Origin", options.origin)
 
         self.set_header("Access-Control-Allow-Headers", "x-requested-with")
         self.set_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
