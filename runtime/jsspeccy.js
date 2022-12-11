@@ -14,6 +14,7 @@ import openIcon from './icons/open.svg';
 import resetIcon from './icons/reset.svg';
 import magicIcon from './icons/magic.svg';
 import warningIcon from './icons/warning.svg';
+import successIcon from './icons/success.svg';
 import playIcon from './icons/play.svg';
 import serverIcon from './icons/server.svg';
 import pauseIcon from './icons/pause.svg';
@@ -133,16 +134,17 @@ class Emulator extends EventEmitter {
 
         const worker = this.worker;
         this.wsProxy = new WebSocket(this.proxyURL);
+        const self = this;
 
         this.wsProxy.onopen = function() {
             console.log("Connected to WS proxy.");
+            self.emit('success', "Connected to proxy");
             worker.postMessage({
                 message: 'loadCore',
                 baseUrl: scriptUrl,
             });
         };
 
-        const self = this;
         this.wsProxy.onclose = function(event) {
             self.emit('warning', "No connection with proxy");
             worker.postMessage({
@@ -601,11 +603,14 @@ window.JSSpeccy = (container, opts) => {
     });
     tapeButton.disable();
 
-    const warningLabel = ui.toolbar.addLabel(warningIcon);
-    warningLabel.disable();
+    const statusLabel = ui.toolbar.addLabel();
+    statusLabel.disable();
+
     emu.on('warning', (e) => {
-        warningLabel.setText(e);
-        warningLabel.enable();
+        statusLabel.enable(warningIcon, e, '#a01f1f');
+    });
+    emu.on('success', (e) => {
+        statusLabel.enable(successIcon, e, '#0f330c');
     });
 
     emu.on('openedTapeFile', () => {
