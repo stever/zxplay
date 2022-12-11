@@ -57,19 +57,28 @@ class Emulator extends EventEmitter {
                     this.loadRoms().then(() => {
                         this.setMachine(opts.machine || 128);
                         this.setTapeTraps(this.tapeTrapsEnabled);
-                        if (opts.tnfs) {
-                            this.loadTNFS(opts.tnfs).then(() => {
-                                if (opts.autoStart) this.start();
-                            });
-                        } else if (opts.openUrl) {
-                            this.openUrlList(opts.openUrl).catch(err => {
-                                alert(err);
-                            }).then(() => {
-                                if (opts.autoStart) this.start();
-                            });
-                        } else if (opts.autoStart) {
-                            this.start();
+
+                        let hm = this.getCookie("hm");
+                        if (!hm) {
+                            hm = (Math.random() + 1).toString(36).substring(6);
+                            this.setCookie("hm", hm, 90);
                         }
+                        this.setMAC(hm).then(() => {
+                            if (opts.tnfs) {
+                                this.loadTNFS(opts.tnfs).then(() => {
+                                    if (opts.autoStart) this.start();
+                                });
+                            } else if (opts.openUrl) {
+                                this.openUrlList(opts.openUrl).catch(err => {
+                                    alert(err);
+                                }).then(() => {
+                                    if (opts.autoStart) this.start();
+                                });
+                            } else if (opts.autoStart) {
+                                this.start();
+                            }
+                        });
+
                     });
                     break;
                 case 'frameCompleted':
@@ -165,6 +174,25 @@ class Emulator extends EventEmitter {
         };
     }
 
+    setCookie(c_name, value, exdays) {
+        var exdate = new Date();
+        exdate.setDate(exdate.getDate() + exdays);
+        var c_value = escape(value) + ((exdays == null) ? "" : "; expires=" + exdate.toUTCString());
+        document.cookie = c_name + "=" + c_value;
+    }
+
+    getCookie(c_name) {
+        var i, x, y, ARRcookies = document.cookie.split(";");
+        for (i = 0; i < ARRcookies.length; i++) {
+            x = ARRcookies[i].substr(0, ARRcookies[i].indexOf("="));
+            y = ARRcookies[i].substr(ARRcookies[i].indexOf("=") + 1);
+            x = x.replace(/^\s+|\s+$/g, "");
+            if (x == c_name) {
+                return unescape(y);
+            }
+        }
+    }
+
     start() {
         if (!this.isRunning) {
             this.isRunning = true;
@@ -210,6 +238,14 @@ class Emulator extends EventEmitter {
         await this.loadRom('roms/pentagon-0.rom', 48);
         await this.loadRom('roms/trdos.rom', 52);
         await this.loadRom('roms/spectranet.rom', 88);
+    }
+
+    async setMAC(addr) {
+        const v = new Uint8Array(6);
+        for (let i = 0; i < 6; i++) {
+            v[i] = addr.charCodeAt(i);
+        }
+        await this.loadRomData(v, 88 + 31, 3848);
     }
 
     async loadTNFS(resource) {
