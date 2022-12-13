@@ -313,7 +313,7 @@ class ProxyApp(web.Application):
         ProxyApp.INSTANCE = self
         self.sockets: Dict[int, Callable[[int], Coroutine]] = {}
         self.polling = select.poll()
-        self.cb = tornado.ioloop.PeriodicCallback(self.poll_loop, 5.0)
+        self.cb = tornado.ioloop.PeriodicCallback(self.poll_loop, 10.0)
         self.cb.start()
 
     def register_socket(self, sock: socket.socket, handler: Callable[[int], Coroutine]):
