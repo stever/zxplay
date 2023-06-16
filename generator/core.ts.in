@@ -240,11 +240,13 @@ let spectranetPagedIn:bool = 0;
 let spectranetPagedInIO:bool = 0;
 let spectranetPageA:u8 = 0xC0;
 let spectranetPageB:u8 = 0xC0;
-let spectranetW5100A:u8 = 0;
-let spectranetW5100B:u8 = 0;
-let spectranetFlashB:u8 = 0;
+let spectranetW5100A:u8 = 0xFF;
+let spectranetW5100B:u8 = 0xFF;
+let spectranetFlashA:u8 = 0xFF;
+let spectranetFlashB:u8 = 0xFF;
 let spectranetNMIFlipFlop:bool = 0;
 let spectranetFlashState:u8 = 0;
+let spectranetReadDeviceId:u8 = 0;
 let dumped:u8 = 0;
 let spectranetTrap:bool = 0;
 let spectranetTrapMSB:bool = 0;
@@ -333,19 +335,29 @@ export function spectranetRefreshPages(): void {
     if (checkW5100Page(spectranetPageA))
     {
         spectranetW5100A = spectranetPageA;
+        spectranetFlashA = 0xFF;
     }
     else
     {
         memoryPageReadMap[1] = convertSpectranetPageRead(spectranetPageA);
         memoryPageWriteMap[1] = convertSpectranetPageWrite(spectranetPageA);
 
-        spectranetW5100A = 0;
+        if (checkFlashPage(spectranetPageA))
+        {
+            spectranetFlashA = spectranetPageA;
+        }
+        else
+        {
+            spectranetFlashA = 0xFF;
+        }
+
+        spectranetW5100A = 0xFF;
     }
 
     if (checkW5100Page(spectranetPageB))
     {
         spectranetW5100B = spectranetPageB;
-        spectranetFlashB = 0;
+        spectranetFlashB = 0xFF;
     }
     else
     {
@@ -358,10 +370,10 @@ export function spectranetRefreshPages(): void {
         }
         else
         {
-            spectranetFlashB = 0;
+            spectranetFlashB = 0xFF;
         }
 
-        spectranetW5100B = 0;
+        spectranetW5100B = 0xFF;
     }
 }
 
@@ -419,9 +431,10 @@ export function spectranetPageOut(): void {
     memoryPageWriteMap[2] = 46;
     memoryPageWriteMap[3] = 47;
 
-    spectranetW5100A = 0;
-    spectranetW5100B = 0;
-    spectranetFlashB = 0;
+    spectranetW5100A = 0xFF;
+    spectranetW5100B = 0xFF;
+    spectranetFlashA = 0xFF;
+    spectranetFlashB = 0xFF;
 
     spectranetPagedIn = false;
     spectranetPagedInIO = false;
@@ -449,6 +462,72 @@ export function spectranetRetN(): void {
 export function spectranetCheckPCPageOut(): void {
     if (spectranetPagedIn && (pcBeforeInstruction == 0x007c)) {
         spectranetPageOut();
+    }
+}
+
+function spectranet_flash_write(page: u8, address: u16, val: u8 ): void {
+    address &= 0xfff;
+
+    const masked_addr:u16 = address & 0x7ff;
+
+    if (spectranetFlashState == 0) {
+        if( masked_addr == 0x555 && val == 0xaa )
+        {
+            spectranetFlashState = 1;
+        }
+    } else {
+        switch (spectranetFlashState) {
+            case 1: {
+                if (masked_addr == 0x2aa && val == 0x55)
+                {
+                    spectranetFlashState = 2;
+                }
+                break;
+            }
+            case 2: {
+                if (masked_addr == 0x555) {
+                    if( val == 0xa0 ) {
+                        spectranetFlashState = 6;
+                    } else if( val == 0x80 ) {
+                        spectranetFlashState = 3;
+                    } else {
+                        spectranetFlashState = 0;
+                    }
+                }
+                break;
+            }
+            case 3: {
+                if (masked_addr == 0x555 && val == 0xaa) {
+                    spectranetFlashState = 4;
+                }
+                break;
+            }
+            case 4: {
+                if (masked_addr == 0x2aa && val == 0x55) {
+                    spectranetFlashState = 5;
+                }
+                break;
+            }
+            case 5: {
+                if (masked_addr == 0x555 && val == 0x10) {
+                    eraseSpectranetROM(0, 32 * 0x1000, 0xFF);
+                    spectranetFlashState = 0;
+                } else if (val == 0x30) {
+                    eraseSpectranetROM((page / 4) * 0x4000, 0x4000, 0xFF);
+                    spectranetFlashState = 0;
+                }
+                break;
+            }
+            case 6: {
+                writeSpectranetROM(page * 0x1000 + (address & 0x0fff), val);
+                spectranetFlashState = 0;
+            }
+        }
+
+        if (val == 0x0f)
+        {
+            spectranetFlashState = 0;
+        }
     }
 }
 
@@ -658,10 +737,10 @@ export function setTapePulseBufferState(writeIndex: u16, tstateCount:u32):void {
 
 function readMem(addr:u16):u8 {
     const page_addr:u8 = u8(addr >> 12);
-    if (spectranetW5100A && page_addr == 1) {
+    if ((spectranetW5100A != 0xFF) && page_addr == 1) {
         return spectranet_w5100_read(spectranetW5100A, addr);
     }
-    if (spectranetW5100B && page_addr == 2) {
+    if ((spectranetW5100B != 0xFF) && page_addr == 2) {
         return spectranet_w5100_read(spectranetW5100B, addr);
     }
     const page:u8 = memoryPageReadMap[page_addr];
@@ -680,11 +759,15 @@ function readMem(addr:u16):u8 {
 
 function readMemInternal(addr:u16):u8 {
     const page_addr:u8 = u8(addr >> 12);
-    if (spectranetW5100A && page_addr == 1) {
+    if ((spectranetW5100A != 0xFF) && page_addr == 1) {
         return spectranet_w5100_read(spectranetW5100A, addr);
     }
-    if (spectranetW5100B && page_addr == 2) {
+    if ((spectranetW5100B != 0xFF) && page_addr == 2) {
         return spectranet_w5100_read(spectranetW5100B, addr);
+    }
+    if (spectranetReadDeviceId && addr < 0x4000) {
+        spectranetReadDeviceId = 0;
+        return 0x00;
     }
     const page:u8 = memoryPageReadMap[page_addr];
     const pageStartPtr:u32 = u32(page) << 12;
@@ -700,84 +783,23 @@ function readMemInternal(addr:u16):u8 {
 function writeMem(addr:u16, val:u8):void {
     const page_addr:u8 = u8(addr >> 12);
     if (page_addr == 1) {
-        if (spectranetW5100A) {
+        if (spectranetW5100A != 0xFF) {
             spectranet_w5100_write(spectranetW5100A, addr, val);
+            return;
+        }
+        else if (spectranetFlashA != 0xFF) {
+            spectranet_flash_write(spectranetFlashA, addr, val);
             return;
         }
     }
     if (page_addr == 2) {
-        if (spectranetW5100B) {
+        if (spectranetW5100B != 0xFF) {
             spectranet_w5100_write(spectranetW5100B, addr, val);
             return;
         }
-    }
-
-    if (spectranetFlashB) {
-        if (spectranetFlashState == 0) {
-            if( addr == 0x555 && val == 0xaa )
-            {
-                spectranetFlashState = 1;
-                return;
-            }
-        } else {
-            switch (spectranetFlashState) {
-                case 1:
-                    if( addr == 0x2aa && val == 0x55 )
-                    {
-                        spectranetFlashState = 2;
-                        return;
-                    }
-                    break;
-                case 2:
-                    if( addr == 0x555 ) {
-                        if( val == 0xa0 )
-                        {
-                            spectranetFlashState = 6;
-                            return;
-                        }
-                        else if( val == 0x80 )
-                        {
-                            spectranetFlashState = 3;
-                            return;
-                        }
-                    }
-                    break;
-                case 3:
-                    if( addr == 0x555 && val == 0xaa )
-                    {
-                        spectranetFlashState = 4;
-                        return;
-                    }
-                    break;
-                case 4:
-                    if( addr == 0x2aa && val == 0x55 )
-                    {
-                        spectranetFlashState = 5;
-                        return;
-                    }
-                    break;
-                case 5:
-                    if( addr == 0x555 && val == 0x10 ) {
-                        eraseSpectranetROM(0, 32 * 0x1000, 0xFF);
-                        spectranetFlashState = 0;
-                        return;
-                    } else if( val == 0x30 ) {
-                        eraseSpectranetROM((spectranetFlashB / 4) * 0x4000, 0x4000, 0xFF);
-                        spectranetFlashState = 0;
-                        return;
-                    }
-                    break;
-                case 6:
-                    writeSpectranetROM(spectranetFlashB * 0x1000 + (addr & 0x0fff), val);
-                    spectranetFlashState = 0;
-                    return;
-            }
-
-            if( val == 0x0f )
-            {
-                spectranetFlashState = 0;
-                return;
-            }
+        else if (spectranetFlashB != 0xFF) {
+            spectranet_flash_write(spectranetFlashB, addr, val);
+            return;
         }
     }
 
