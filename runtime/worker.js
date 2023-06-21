@@ -85,19 +85,28 @@ const loadCore = (baseUrl) => {
             }
         };
 
-        function toHexString(byteArray) {
-          return Array.from(byteArray, function(byte) {
-            return ('0' + (byte & 0xFF).toString(16)).slice(-2);
-          }).join('')
-        }
-
         const spectranetImportObject = {
             env: {
                 abort: m => { /* ... */ },
                 spectranetReset: () => spectranet.nic_w5100_reset(),
                 spectranetRead: (reg) => spectranet.nic_w5100_read(reg),
                 spectranetWrite: (reg, val) => spectranet.nic_w5100_write(reg, val),
-                updateSpectranetIO: () => spectranet.nic_w5100_io()
+                updateSpectranetIO: () => spectranet.nic_w5100_io(),
+                extWriteSpectranetROM: (addr, val) => {
+                    postMessage({
+                        'message': 'writeSpectranetROM',
+                        addr: addr,
+                        val: val
+                    });
+                },
+                extEraseSpectranetROM: (from, to, val) => {
+                    postMessage({
+                        'message': 'eraseSpectranetROM',
+                        from: from,
+                        to: to,
+                        val: val
+                    });
+                }
             }
         };
 

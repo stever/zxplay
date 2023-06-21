@@ -2,6 +2,7 @@ import EventEmitter from 'events';
 import fileDialog from 'file-dialog';
 import JSZip from 'jszip';
 
+import { Buffer } from 'buffer';
 import { DisplayHandler } from './render.js';
 import { UIController } from './ui.js';
 import { parseSNAFile, parseZ80File, parseSZXFile } from './snapshot.js';
@@ -47,6 +48,16 @@ class Emulator extends EventEmitter {
         this.isExecutingFrame = false;
         this.nextFrameTime = null;
         this.machineType = null;
+
+        const spectranetRom = localStorage.getItem('spectranetRom');
+
+        this.spectranetRomSaveTimer = -1;
+
+        if (spectranetRom) {
+            this.spectranetRom = Uint8Array.from(atob(spectranetRom), c => c.charCodeAt(0));
+        } else {
+            this.spectranetRom = null;
+        }
 
         this.nextFileOpenID = 0;
         this.fileOpenPromiseResolutions = {};
@@ -136,6 +147,32 @@ class Emulator extends EventEmitter {
                         "a": e.data.args
                     }));
                     break;
+                case 'writeSpectranetROM':
+                {
+                    if (this.spectranetRom) {
+                        const addr = e.data.addr;
+                        this.spectranetRom[addr] = e.data.val;
+                        this.saveSpectranetRom();
+                    }
+                    break;
+                }
+                case 'eraseSpectranetROM':
+                {
+                    if (this.spectranetRom) {
+                        const from = e.data.from;
+                        const to = e.data.to;
+                        const val = e.data.val;
+
+                        for (let i = from; i < to; i++)
+                        {
+                            this.spectranetRom[i] = val;
+                        }
+
+                        this.saveSpectranetRom();
+                    }
+                    break;
+                }
+
                 default:
                     console.log('message received by host:', e.data);
             }
@@ -172,6 +209,16 @@ class Emulator extends EventEmitter {
                 });
             });
         };
+    }
+
+    saveSpectranetRom() {
+        if (this.spectranetRomSaveTimer !== -1) {
+            clearTimeout(this.spectranetRomSaveTimer);
+        }
+        this.spectranetRomSaveTimer = setTimeout(() => {
+            localStorage.setItem('spectranetRom', Buffer.from(this.spectranetRom).toString('base64'));
+            this.spectranetRomSaveTimer = -1;
+        }, 1000);
     }
 
     setCookie(c_name, value, exdays) {
@@ -228,7 +275,8 @@ class Emulator extends EventEmitter {
     async loadRom(url, page, offset = 0) {
         const response = await fetch(new URL(url, scriptUrl));
         const data = new Uint8Array(await response.arrayBuffer());
-        this.loadRomData(data, page, offset);
+        await this.loadRomData(data, page, offset);
+        return data;
     }
 
     async loadRoms() {
@@ -237,7 +285,12 @@ class Emulator extends EventEmitter {
         await this.loadRom('roms/48.rom', 40);
         await this.loadRom('roms/pentagon-0.rom', 48);
         await this.loadRom('roms/trdos.rom', 52);
-        await this.loadRom('roms/spectranet.rom', 88);
+
+        if (this.spectranetRom == null) {
+            this.spectranetRom = await this.loadRom('roms/spectranet.rom', 88);
+        } else {
+            await this.loadRomData(this.spectranetRom, 88, 0);
+        }
     }
 
     async setMAC(addr) {
@@ -641,6 +694,13 @@ window.JSSpeccy = (container, opts) => {
 
     const statusLabel = ui.toolbar.addLabel();
     statusLabel.disable();
+
+    const spectranetMenu = ui.menuBar.addMenu('Spectranet');
+
+    spectranetMenu.addItem('Erase ROM', () => {
+        localStorage.removeItem('spectranetRom');
+        location.reload();
+    })
 
     emu.on('warning', (e) => {
         statusLabel.enable(warningIcon, e, '#a01f1f');

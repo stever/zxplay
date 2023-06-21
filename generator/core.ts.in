@@ -264,6 +264,12 @@ declare function spectranetRead(reg: u16): u8;
 @external("env", "spectranetWrite")
 declare function spectranetWrite(reg: u16, val: u8): void;
 
+@external("env", "extWriteSpectranetROM")
+declare function extWriteSpectranetROM(addr: u32, val: u8): void;
+
+@external("env", "extEraseSpectranetROM")
+declare function extEraseSpectranetROM(from: u32, to: u32, b: u8): void;
+
 function get_w5100_register(page: u8, address: u16): u16 {
   const base_address: u16 = (u16)((page - 0x40) * 0x1000);
   return base_address + (address & 0xfff);
@@ -377,11 +383,14 @@ export function spectranetRefreshPages(): void {
     }
 }
 
-export function eraseSpectranetROM(from: u32, to: u32, b: u8): void {
+export function eraseSpectranetROM(from: u32, to: u32, b: u8, notify: bool): void {
     // reset spectranet ROM to FF to emulate FLASH
     const offset: u32 = 88 * 0x1000;
     for (let i: u32 = from; i < to; i++) {
         machineMemory[i + offset] = b;
+    }
+    if (notify) {
+        extEraseSpectranetROM(from, to, b);
     }
 }
 
@@ -389,6 +398,7 @@ export function writeSpectranetROM(addr: u32, val: u8): void {
     // reset spectranet ROM to FF to emulate FLASH
     const offset: u32 = 88 * 0x1000;
     machineMemory[addr + offset] = val;
+    extWriteSpectranetROM(addr, val);
 }
 
 export function spectranetPageIn(io: bool): void {
@@ -510,10 +520,10 @@ function spectranet_flash_write(page: u8, address: u16, val: u8 ): void {
             }
             case 5: {
                 if (masked_addr == 0x555 && val == 0x10) {
-                    eraseSpectranetROM(0, 32 * 0x1000, 0xFF);
+                    eraseSpectranetROM(0, 32 * 0x1000, 0xFF, true);
                     spectranetFlashState = 0;
                 } else if (val == 0x30) {
-                    eraseSpectranetROM((page / 4) * 0x4000, 0x4000, 0xFF);
+                    eraseSpectranetROM((page / 4) * 0x4000, 0x4000, 0xFF, true);
                     spectranetFlashState = 0;
                 }
                 break;
@@ -536,7 +546,7 @@ function spectranet_flash_write(page: u8, address: u16, val: u8 ): void {
 /* ===================================================================================================================*/
 
 export function resetROM(): void {
-    eraseSpectranetROM(0, 32 * 0x1000, 0xFF);
+    eraseSpectranetROM(0, 32 * 0x1000, 0xFF, false);
 }
 
 // whether a trap on the next instruction will be honoured

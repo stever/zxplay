@@ -68,6 +68,7 @@
   },
   "dependencies": {
     "bson": "^4.7.0",
+    "buffer": "^6.0.3",
     "file-dialog": "^0.0.8",
     "jszip": "^3.7.1",
     "pako": "^2.0.4",
