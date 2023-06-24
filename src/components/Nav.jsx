@@ -8,7 +8,6 @@ import {
     showOpenFileDialog,
     viewFullScreen
 } from "../redux/jsspeccy/actions";
-import {downloadProjectTap} from "../redux/eightbit/actions";
 import {getUserInfo} from "../redux/identity/actions";
 import {login, logout} from "../auth";
 import {resetEmulator} from "../redux/app/actions";
@@ -189,14 +188,6 @@ function getMenuItems(navigate, userId, dispatch, lang, emuVisible) {
                 command: () => {
                     dispatch(showOpenFileDialog());
                     navigate('/');
-                }
-            },
-            {
-                label: 'Download TAP',
-                icon: 'pi pi-fw pi-download',
-                disabled: typeof lang === 'undefined',
-                command: () => {
-                    dispatch(downloadProjectTap());
                 }
             }
         ]

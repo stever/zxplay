@@ -48,11 +48,6 @@ export default function AboutPage() {
                         <a href="https://github.com/stever/emscripten-zmakebas" target="_blank">zmakebas</a> by Russell Marks.
                         This tool is public domain.
                     </li>
-                    <li>
-                        <a href="https://github.com/sehugg/8bitworkshop" target="_blank">8bitworkshop</a> by
-                        Steven Hugg. Licensed under terms of The GPL version 3 - see{' '}
-                        <a href="https://github.com/sehugg/8bitworkshop/blob/master/LICENSE" target="_blank">LICENSE</a>.
-                    </li>
                     {Constants.isDev &&
                         <>
                             <li>

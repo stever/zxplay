@@ -6,7 +6,6 @@ import CodeMirror from "./CodeMirror";
 import "codemirror/mode/z80/z80";
 import {deleteProject, saveCodeChanges} from "../redux/project/actions";
 import {setCode} from "../redux/project/actions";
-import {runProjectCode} from "../redux/eightbit/actions";
 import "../lib/syntax/pasmo";
 import "../lib/syntax/zmac";
 import "../lib/syntax/zmakebas";
@@ -82,15 +81,6 @@ export function ProjectEditor() {
                 ref={cmRef}
                 options={options}
                 onChange={(cm, _) => dispatch(setCode(cm.getValue()))}
-            />
-            <Button
-                label="Run"
-                icon="pi pi-play"
-                className="mt-2 mr-2"
-                onClick={() => {
-                    dashboardLock();
-                    dispatch(runProjectCode());
-                }}
             />
             <Button
                 label="Save"
