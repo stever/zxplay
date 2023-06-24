@@ -1,6 +1,10 @@
-.idea/
-.turbo/
-node_modules/
-.graphqlconfig
+*.DS_Store
+*.swp
 .env
-/apps/web/es5/
+.idea/
+apps/web/es5/
+build/
+es5/
+node_modules/
+public/dist/
+typedocs/
