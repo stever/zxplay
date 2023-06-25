@@ -1,6 +1,6 @@
 # ZX Play
 
-A ZX Spectrum emulator & programming environment for the browser.
+A mobile-friendly ZX Spectrum emulator for the browser.
 
 ## Fresh Start
 
