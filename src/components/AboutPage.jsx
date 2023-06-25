@@ -1,8 +1,7 @@
 import React from "react";
-import {Link} from "react-router-dom";
 import {Titled} from "react-titled";
 import {Card} from "primereact/card";
-import Constants, {sep} from "../constants";
+import {sep} from "../constants";
 
 export default function AboutPage() {
     return (
@@ -13,12 +12,11 @@ export default function AboutPage() {
                     A mobile-friendly ZX Spectrum emulator for the browser.
                     Source available <a href="https://github.com/zxplay/zxplay" target="_blank">here</a>.
                 </p>
-                {/*
                 <p>
-                    Please read <Link to="/legal/privacy-policy">privacy policy</Link>
-                    {' '}and <Link to="/legal/terms-of-use">terms of use</Link>.
+                    An alternative website, related to this one,
+                    is available at <a href="https://zxcoder.org/" target="_blank">zxcoder.org</a>.
+                    ZX Coder supports running programs entered via web pages.
                 </p>
-                */}
                 <h2>Acknowledgements</h2>
                 <p>
                     This software uses code from the following open source projects:
