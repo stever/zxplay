@@ -7,21 +7,11 @@ import Constants from "../constants";
 
 // Reducers
 import appReducer from "./app/reducers";
-import demoReducer from "./demo/reducers";
 import errorReducer from "./error/reducers";
-import identityReducer from "./identity/reducers";
-import projectReducer from "./project/reducers";
-import projectListReducer from "./projectList/reducers";
-import subscriberReducer from "./subscriber/reducers";
 
 // Sagas
 import * as appSagas from "./app/sagas";
-import * as demoSagas from "./demo/sagas";
-import * as identitySagas from "./identity/sagas";
 import * as jsspeccySagas from "./jsspeccy/sagas";
-import * as projectSagas from "./project/sagas";
-import * as projectListSagas from "./projectList/sagas";
-import * as subscriberSagas from "./subscriber/sagas";
 
 const loggingMiddleware = (store) => {
     return (next) => {
@@ -55,12 +45,7 @@ const sagaMiddleware = createSagaMiddleware();
 const rootReducer = combineReducers({
     router: createRouterReducer(history),
     app: appReducer,
-    demo: demoReducer,
     error: errorReducer,
-    identity: identityReducer,
-    project: projectReducer,
-    projectList: projectListReducer,
-    subscriber:subscriberReducer,
 });
 
 export const store = createStore(
@@ -81,12 +66,7 @@ function collectSagas(file) {
 }
 
 collectSagas(appSagas);
-collectSagas(demoSagas);
-collectSagas(identitySagas);
 collectSagas(jsspeccySagas);
-collectSagas(projectSagas);
-collectSagas(projectListSagas);
-collectSagas(subscriberSagas);
 
 function* rootSaga() {
     yield all(sagas);

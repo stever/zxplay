@@ -11,7 +11,6 @@ import {
     reset,
     start
 } from "./actions";
-import {reset as resetProject} from "../project/actions";
 import {showActiveEmulator} from "../app/actions";
 import {handleException} from "../../errors";
 
@@ -182,7 +181,6 @@ function* handleLoadTapActions(action) {
 
 function* handleLoadUrlActions(action) {
     try {
-        yield put(resetProject());
         yield put(showActiveEmulator());
         yield put(reset());
         yield put(start());
@@ -249,7 +247,6 @@ function* handleExitActions(_) {
 
 function* handleOpenFileDialogActions(_) {
     try {
-        yield put(resetProject());
         yield put(showActiveEmulator());
         jsspeccy.openFileDialog();
     } catch (e) {

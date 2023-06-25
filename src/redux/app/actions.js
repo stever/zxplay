@@ -14,21 +14,3 @@ export const showActiveEmulator = () => ({
 export const resetEmulator = () => ({
     type: actionTypes.resetEmulator
 })
-
-export const requestTermsOfUse = () => ({
-    type: actionTypes.requestTermsOfUse
-})
-
-export const receiveTermsOfUse = (text) => ({
-    type: actionTypes.receiveTermsOfUse,
-    text
-})
-
-export const requestPrivacyPolicy = () => ({
-    type: actionTypes.requestPrivacyPolicy
-})
-
-export const receivePrivacyPolicy = (text) => ({
-    type: actionTypes.receivePrivacyPolicy,
-    text
-})
