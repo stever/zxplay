@@ -6,7 +6,7 @@ on:
     - cron: "0 0 * * SAT" # every saturday at midnight
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build-image:
