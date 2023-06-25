@@ -10,34 +10,7 @@ These steps assume that you are working in GitHub Codespaces using the Dev Conta
 npm run dev # ctrl-c to quit
 ```
 
-Launch the URL for the proxied web server on port 8080 (http://localhost:8080).
-
-## Development Notes
-
-### Docker Commands
-
-Remove docker compose deployment to start over:
-
-```bash
-docker compose stop && docker compose rm -f
-docker volume rm zxplay_pg_data
-```
-
-Refresh and restart docker-compose deployment:
-
-```bash
-docker compose pull
-docker compose up --build -d
-```
-
-### HTTP Local Ports Used
-
-| Port | Purpose             | Protocol |
-| ---- | ------------------- | -------- |
-| 4000 | Hasura GraphQL      | HTTP     |
-| 5000 | Auth                | HTTP     |
-| 8000 | React               | HTTP     |
-| 8080 | Proxy               | HTTP     |
+Launch the URL for the web server on port 8000 (http://localhost:8000).
 
 ## JSSpeccy3 Core
 
