@@ -4,10 +4,9 @@ A mobile-friendly ZX Spectrum emulator for the browser.
 
 ## Fresh Start
 
-These steps assume that you are working in GitHub Codespaces using the Dev Container in this repository.
-
 ```bash
-npm run dev # ctrl-c to quit
+npm install
+npm run dev
 ```
 
 Launch the URL for the web server on port 8000 (http://localhost:8000).
@@ -15,8 +14,6 @@ Launch the URL for the web server on port 8000 (http://localhost:8000).
 ## JSSpeccy3 Core
 
 Based on [JSSpeccy3](https://github.com/gasman/jsspeccy3).
-
-This is a personal fork for some customisation also using mods from other forks.
 
 ### Features
 
