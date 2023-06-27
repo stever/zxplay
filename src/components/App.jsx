@@ -34,9 +34,7 @@ export default function App() {
             <LoadingScreen/>
             <LockScreen/>
             <div className="pb-1">
-                {!externalLoad &&
-                    <Nav/>
-                }
+                <Nav/>
                 {err &&
                     <ErrorPage msg={err}/>
                 }

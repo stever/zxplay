@@ -17,27 +17,25 @@ export default function Nav() {
     const pathname = useSelector(state => state?.router.location.pathname);
     const emuVisible = pathname === '/';
 
-    const start = <img alt="logo" src="/logo.png" height={"40"} className="mr-2"/>;
-    const end = (
-        <InputText
-            placeholder="Search"
-            type="text"
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => {
-                if (e.key === 'Enter' && searchInput) {
-                    navigate(`/search?q=${searchInput}`);
-                }
-        }}/>
-    );
-
     const items = getMenuItems(navigate, dispatch, emuVisible);
 
     return (
         <div className="px-2 pt-2">
             <Menubar
                 model={items}
-                start={start}
-                end={end}
+                start={<img alt="logo" src="/logo.png" height={"40"} className="mx-2"/>}
+                end={(
+                    <InputText
+                        className="mx-2 p-2"
+                        placeholder="Search"
+                        type="text"
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && searchInput) {
+                                navigate(`/search?q=${searchInput}`);
+                            }
+                        }}/>
+                )}
                 style={{
                     borderRadius: '5px',
                     borderColor: '#1E1E1E'
