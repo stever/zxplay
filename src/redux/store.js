@@ -8,10 +8,12 @@ import Constants from "../constants";
 // Reducers
 import appReducer from "./app/reducers";
 import errorReducer from "./error/reducers";
+import windowReducer from "./window/reducers";
 
 // Sagas
 import * as appSagas from "./app/sagas";
 import * as jsspeccySagas from "./jsspeccy/sagas";
+import * as windowSagas from "./window/sagas";
 
 const loggingMiddleware = (store) => {
     return (next) => {
@@ -46,6 +48,7 @@ const rootReducer = combineReducers({
     router: createRouterReducer(history),
     app: appReducer,
     error: errorReducer,
+    window: windowReducer,
 });
 
 export const store = createStore(
@@ -67,6 +70,7 @@ function collectSagas(file) {
 
 collectSagas(appSagas);
 collectSagas(jsspeccySagas);
+collectSagas(windowSagas);
 
 function* rootSaga() {
     yield all(sagas);

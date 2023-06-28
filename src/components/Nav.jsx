@@ -17,16 +17,19 @@ export default function Nav() {
     const pathname = useSelector(state => state?.router.location.pathname);
     const emuVisible = pathname === '/';
 
+    const isMobile = useSelector(state => state?.window.isMobile);
+    const className = isMobile ? '' : 'px-2 pt-2';
+
     const items = getMenuItems(navigate, dispatch, emuVisible);
 
     return (
-        <div className="px-2 pt-2">
+        <div className={className}>
             <Menubar
                 model={items}
-                start={<img alt="logo" src="/logo.png" height={"40"} className="mx-2"/>}
+                start={<img alt="logo" src="/logo.png" height={"40"} className="mx-1"/>}
                 end={(
                     <InputText
-                        className="mx-2 p-2"
+                        className="mx-1 p-2"
                         placeholder="Search"
                         type="text"
                         onChange={(e) => setSearchInput(e.target.value)}
@@ -37,7 +40,7 @@ export default function Nav() {
                         }}/>
                 )}
                 style={{
-                    borderRadius: '5px',
+                    borderRadius: isMobile ? 0 : '5px',
                     borderColor: '#1E1E1E'
                 }}
             />
